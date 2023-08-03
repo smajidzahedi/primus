@@ -1,0 +1,10 @@
+ac_policy_MF_markov_app	0.14326
+thr_policy_0.1_markov_app	-13.536924000000003
+thr_policy_0.2_markov_app	-10.188639
+thr_policy_0.3_markov_app	-4.153559
+thr_policy_0.4_markov_app	-1.3043285000000002
+thr_policy_0.5_markov_app	-0.21266899999999997
+thr_policy_0.6_markov_app	0.060542
+thr_policy_0.7_markov_app	0.0950265
+thr_policy_0.8_markov_app	0.06802449999999999
+thr_policy_0.9_markov_app	0.041754999999999994
