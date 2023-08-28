@@ -1,0 +1,48 @@
+class ACPolicy(nn.Module):
+    def __init__(self, l1_in_actor, l1_in_critic, l1_out_l2_in_actor, 
+                 l1_out_l2_in_critic):
+        super(ACPolicy, self).__init__()
+        # Actor
+        self.fc1_actor = nn.Linear(l1_in_actor, l1_out_l2_in_actor)
+        init.kaiming_uniform_(self.fc1_actor.weight, nonlinearity='relu')
+        self.fc2_actor = nn.Linear(l1_out_l2_in_actor, 2)
+        
+        # Critic
+        self.fc1_critic = nn.Linear(l1_in_critic, l1_out_l2_in_critic)
+        init.kaiming_uniform_(self.fc1_critic.weight, nonlinearity='relu')
+        self.fc2_critic = nn.Linear(l1_out_l2_in_critic, 1)
+
+    def forward(self, x):
+        x_actor = x[0]
+        x_critic = x[1]
+        x_actor = torch.relu(self.fc1_actor(x_actor))
+        action_prob = torch.softmax(self.fc2_actor(x_actor), dim=-1)
+        third_order = x_critic**3
+        forth_order = x_critic**4
+        x_critic = torch.outer(x_critic, x_critic).flatten()
+        x_critic = torch.cat((forth_order, third_order, x_critic))
+        x_critic = torch.relu(self.fc1_critic(x_critic))
+        state_value = self.fc2_critic(x_critic)
+    
+        return action_prob, state_value
+
+Markov_app
+Best is trial 22 with value: 0.15834499999999999.
+{'alpha': 4, 'beta': 2.5, 'lr_actor': 8e-05, 'l1_out_l2_in_actor': 512, 'l1_out_l2_in_critic': 64, 'recovery_cost': 29}
+
+Queue_app
+Best is trial 32 with value: -0.003560512000000001.
+{'alpha': 4, 'beta': 2.0, 'max_queue_length': 5000, 'lr_actor': 0.0003, 'l1_out_l2_in_actor': 32, 'l1_out_l2_in_critic': 512, 'recovery_cost': 15}
+
+
+
+        -0.01,
+        -0.009,
+        -0.008,
+        -0.007,
+        -0.006,
+        -0.005,
+        -0.004,
+        -0.003,
+        -0.002,
+        -0.001

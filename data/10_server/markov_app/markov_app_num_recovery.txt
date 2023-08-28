@@ -8,3 +8,5 @@ thr_policy_0.6_markov_app	34
 thr_policy_0.7_markov_app	0
 thr_policy_0.8_markov_app	0
 thr_policy_0.9_markov_app	0
+q_learning_MF_markov_app	0
+ac_policy_NMF_markov_app	1031

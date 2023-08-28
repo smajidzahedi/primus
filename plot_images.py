@@ -7,19 +7,15 @@ def main():
     with open('/Users/jingyiwu/Desktop/MARL/config.json', 'r') as f:
         config = json.load(f)
 
-
     coordinator_config = config["coordinator_config"]
     num_servers = config["num_servers"]
     num_iterations = coordinator_config["num_iterations"]
     folder_name = config["folder_name"]
-    game_type = config["game_type"]
-    app = ""
-    app_states = config["app_states"]
+    game_type = config["game_type"] 
     utilities = config["utilities"]
     num_servers = config["num_servers"]
     app_type = config["app_type"]
-    location = f"{folder_name}/{num_servers}_server/{app_type}"
-
+    location = f"{folder_name}/{num_servers}_server/{app_type}"   
     policy = ""
     threshold = config["threshold"]
     policy = config["policy_type"]
@@ -35,6 +31,7 @@ def main():
         plt.savefig(os.path.join(location, f"{app_type}_{policy}_frac_sprinter.png"))
     else:
         plt.savefig(os.path.join(location, f"{game_type}_{app_type}_{policy}_frac_sprinter.png"))
+    plt.close()
 
     rewards_from_servers = np.empty([num_servers, num_iterations])
     policies_from_servers = np.empty([num_servers, len(utilities)])
@@ -58,36 +55,25 @@ def main():
         plt.savefig(os.path.join(location, f'{app_type}_{policy}_mean_rewards.png'))
     else:
         plt.savefig(os.path.join(location, f'{game_type}_{app_type}_{policy}_mean_rewards.png'))
+    plt.close()
 
     #   calculate average reward over rounds for different policy 
-    if policy == "ac_policy" or policy == "q_learn":
+    if policy == "ac_policy" or policy == "q_learning":
         avg_reward = mean_rewards[len(mean_rewards)-1000:].mean()
     else:
         avg_reward = mean_rewards.mean()
 
     file_path = os.path.join(location, f"{app_type}_different_policy_avg_rewards.txt")
     with open(file_path, 'a+') as file:
-        if policy == "ac_policy" or policy == "q_learn":
+        if policy == "ac_policy" or policy == "q_learning":
             file.write(f"{policy}_{game_type}_{app_type}\t{avg_reward}\n")
         else:
             file.write(f"{policy}_{str(threshold)}_{app_type}\t{avg_reward}\n")
 
-
-    if policy == "ac_policy":
-        policies_from_servers = np.column_stack(policies_from_servers)
-        mean_policies = policies_from_servers.mean(axis=1)
-        plt.figure(figsize=(20, 8))
-        plt.bar(app_states, mean_policies, width=0.5)
-        plt.xlabel('Utility')
-        plt.ylabel('Mean Sprinting Probability')
-        plt.title('Mean Sprinting Probability for Different Utilities Across All Servers')
-        plt.grid(True)
-        plt.savefig(os.path.join(location, f'{game_type}_{app_type}_{policy}_sprinting_prob.png'))  
-
-
     if app_type == "queue_app":
         # Iterate over all 10 servers
         x = list(range(1, num_iterations+1))
+        plt.figure(figsize=(40, 20)) 
         for server_id in range(num_servers):
             y = []  # Initialize the y-axis
             file_path = os.path.join(location, f"server_{server_id}_app_state.txt")
@@ -99,7 +85,7 @@ def main():
         x_ticks = list(range(0, num_iterations, 10000))
         x_tick_labels = [str(tick) for tick in x_ticks]  # Convert tick values to strings
         plt.xticks(x_ticks, x_tick_labels, rotation=45)
-        plt.legend()
+        plt.legend(ncol=2, bbox_to_anchor=(1, 1))
         plt.xlabel('Number of Iterations')
         plt.ylabel('Queue Length')
         plt.title('Queue Length Over Iterations for Each Server')
@@ -108,7 +94,7 @@ def main():
             plt.savefig(os.path.join(location, f'{app_type}_{policy}_queue_length.png'))
         else:
             plt.savefig(os.path.join(location, f'{game_type}_{app_type}_{policy}_queue_length.png'))
-
+        plt.close()
     return avg_reward
 
 if __name__ == "__main__":

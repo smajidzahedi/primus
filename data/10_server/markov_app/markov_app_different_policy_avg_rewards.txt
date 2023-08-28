@@ -8,3 +8,5 @@ thr_policy_0.6_markov_app	0.060542
 thr_policy_0.7_markov_app	0.0950265
 thr_policy_0.8_markov_app	0.06802449999999999
 thr_policy_0.9_markov_app	0.041754999999999994
+q_learning_MF_markov_app	0.14322000000000001
+ac_policy_NMF_markov_app	0.13482999999999998

@@ -8,3 +8,5 @@ thr_policy_0.6_normal_app	84
 thr_policy_0.7_normal_app	0
 thr_policy_0.8_normal_app	0
 thr_policy_0.9_normal_app	0
+q_learning_MF_normal_app	0
+ac_policy_NMF_normal_app	986

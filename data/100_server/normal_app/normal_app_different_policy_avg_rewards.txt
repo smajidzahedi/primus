@@ -1,0 +1,12 @@
+ac_policy_MF_normal_app	0.173658
+q_learning_MF_normal_app	0.148033
+thr_policy_0.0_normal_app	-9.34926575
+thr_policy_0.1_normal_app	-9.34926575
+thr_policy_0.2_normal_app	-9.219648799999998
+thr_policy_0.3_normal_app	-8.901245849999999
+thr_policy_0.4_normal_app	-8.030206149999998
+thr_policy_0.5_normal_app	-3.5406343500000004
+thr_policy_0.6_normal_app	-3.5406343500000004
+thr_policy_0.7_normal_app	0.147129
+thr_policy_0.8_normal_app	0.147129
+thr_policy_0.9_normal_app	0.05324500000000001

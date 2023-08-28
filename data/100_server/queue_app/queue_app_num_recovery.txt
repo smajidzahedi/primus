@@ -1,0 +1,12 @@
+ac_policy_MF_queue_app	0
+q_learning_MF_queue_app	0
+thr_policy_-0.01_queue_app	9652
+thr_policy_-0.009_queue_app	9632
+thr_policy_-0.008_queue_app	9525
+thr_policy_-0.007_queue_app	9424
+thr_policy_-0.006_queue_app	9170
+thr_policy_-0.005_queue_app	9746
+thr_policy_-0.004_queue_app	9239
+thr_policy_-0.003_queue_app	0
+thr_policy_-0.002_queue_app	0
+thr_policy_-0.001_queue_app	0

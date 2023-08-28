@@ -26,7 +26,7 @@ data = pd.merge(avg_rewards, num_recovery, on='policy', how='outer')
 # Set policy as the index
 data.set_index('policy', inplace=True)
 
-fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(15,10))
+fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(25,22))
 
 labels = data.index.values
 width = 0.35
@@ -39,7 +39,7 @@ for i, v in enumerate(data['average_reward']):
     if v >= 0:
         ax1.text(i, v + 0.01, str(round(v, 6)), ha='center')
     else:
-        ax1.text(i, v - 0.005, str(round(v, 6)), ha='center')
+        ax1.text(i, v - 0.2, str(round(v, 6)), ha='center')
 ax1.set_ylabel('Average Reward')
 ax1.set_xticks(x)
 ax1.set_xticklabels(labels, rotation=45, ha='right')
@@ -52,7 +52,5 @@ ax2.set_ylabel('Number of Recovery')
 ax2.set_xticks(x)
 ax2.set_xticklabels(labels, rotation=45, ha='right')
 ax2.legend(loc='upper right')
-
 plt.suptitle('Average Reward and Number of Recovery for Different Policies')
-plt.tight_layout()
 plt.savefig(os.path.join(location, f'{app_type}_policy_compare.png'))

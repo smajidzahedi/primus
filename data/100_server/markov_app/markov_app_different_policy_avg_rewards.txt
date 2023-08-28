@@ -1,0 +1,12 @@
+ac_policy_MF_markov_app	0.146277
+q_learning_MF_markov_app	0.136937
+thr_policy_0.0_markov_app	-17.6904592
+thr_policy_0.1_markov_app	-17.6904592
+thr_policy_0.2_markov_app	-16.9048413
+thr_policy_0.3_markov_app	-13.069611349999999
+thr_policy_0.4_markov_app	-4.6748138500000005
+thr_policy_0.5_markov_app	0.14211325
+thr_policy_0.6_markov_app	0.14211325
+thr_policy_0.7_markov_app	0.0989449
+thr_policy_0.8_markov_app	0.0989449
+thr_policy_0.9_markov_app	0.0427255

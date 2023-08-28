@@ -8,3 +8,5 @@ thr_policy_0.6_uniform_app	0.173459
 thr_policy_0.7_uniform_app	0.1657535
 thr_policy_0.8_uniform_app	0.13734000000000002
 thr_policy_0.9_uniform_app	0.0828
+q_learning_MF_uniform_app	0.12642
+ac_policy_NMF_uniform_app	0.16031

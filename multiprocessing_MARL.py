@@ -3,6 +3,7 @@ import numpy as np
 from scipy.stats import norm
 import torch
 from torch import nn, optim
+import torch.nn.init as init
 import torch.nn.functional as F
 import time
 import os
@@ -88,7 +89,8 @@ class NormalApp(App):
             current_cdf = norm.cdf(utility, self.loc, self.scale)
             self.prob.append(current_cdf - prev_cdf)
             prev_cdf = current_cdf
-        self.prob.append(1 - prev_cdf) 
+        self.prob.append(1 - prev_cdf)
+        self.current_state =  np.random.choice(self.app_states, p=self.prob)
         
     def get_sprinting_utility(self):
         return self.utilities[self.app_states.index(self.current_state)]
@@ -114,11 +116,9 @@ class QueueApp(App):
         return min(self.current_state / self.max_queue_length, 1)
     
     def get_sprinting_utility(self):
-        #return min(self.current_state, self.sprinting_tps) / (self.sprinting_tps) - self.get_current_state()
         return -min(self.current_state + self.arrival_tps - min(self.current_state, self.sprinting_tps), self.max_queue_length) / self.max_queue_length
     
     def get_cooling_utility(self):
-        #return min(self.current_state, self.nominal_tps) / (self.sprinting_tps) - self.get_current_state()
         return -min(self.current_state + self.arrival_tps - min(self.current_state, self.nominal_tps), self.max_queue_length) / self.max_queue_length
     
     def get_recovery_utility(self):
@@ -143,45 +143,57 @@ class Policy(nn.Module):
 
 #   Deep Q Learning
 class QNetwork(nn.Module):
-    def __init__(self, l1_in, l1_out_l2_in, l2_out_l3_in):
+    def __init__(self, l1_in, l1_out_l2_in):
         super(QNetwork, self).__init__()
         self.fc1= nn.Linear(l1_in, l1_out_l2_in)
-        self.fc2 = nn.Linear(l1_out_l2_in, l2_out_l3_in)
-        self.fc3 = nn.Linear(l2_out_l3_in, 2)
+        init.kaiming_uniform_(self.fc1.weight, nonlinearity='relu')
+        self.fc2 = nn.Linear(l1_out_l2_in, 2)
 
     def forward(self, x):
         x = x[0]
-        x = torch.ger(x, x).flatten()
         x = torch.relu(self.fc1(x))
-        x = torch.tanh(self.fc2(x))
-        q_values = self.fc3(x)
+        q_values = self.fc2(x)
         return q_values
 
+
 #   Actor Critic Policy
-class ACPolicy(Policy):
-    def __init__(self, l1_in_actor, l1_in_critic, l1_out_l2_in_actor, l2_out_l3_in_actor, 
-                 l1_out_l2_in_critic, l2_out_l3_in_critic):
+class ACPolicy(nn.Module):
+    def __init__(self, l1_in_actor, l1_in_critic, l1_out_l2_in_actor, 
+                 l1_out_l2_in_critic, app_type):
         super(ACPolicy, self).__init__()
-        self.fc1_actor= nn.Linear(l1_in_actor, l1_out_l2_in_actor)
+        self.app_type = app_type
+        # Actor
+        self.fc1_actor = nn.Linear(l1_in_actor, l1_out_l2_in_actor)
+        init.kaiming_uniform_(self.fc1_actor.weight, nonlinearity='relu')
+        if self.app_type == "queue_app":
+            self.fc2_actor = nn.Linear(l1_out_l2_in_actor, 1)
+        else:
+            self.fc2_actor = nn.Linear(l1_out_l2_in_actor, 10)
+        # Critic
         self.fc1_critic = nn.Linear(l1_in_critic, l1_out_l2_in_critic)
-        self.fc2_actor = nn.Linear(l1_out_l2_in_actor, l2_out_l3_in_actor)
-        self.fc2_critic = nn.Linear(l1_out_l2_in_critic, l2_out_l3_in_critic)
-        self.fc3_actor = nn.Linear(l2_out_l3_in_actor, 2)
-        self.fc3_critic = nn.Linear(l2_out_l3_in_critic, 1)
+        init.kaiming_uniform_(self.fc1_critic.weight, nonlinearity='relu')
+        self.fc2_critic = nn.Linear(l1_out_l2_in_critic, 1)
 
     def forward(self, x):
         x_actor = x[0]
         x_critic = x[1]
+        utility = x_actor[0]
         x_actor = torch.relu(self.fc1_actor(x_actor))
-        x_actor =  torch.tanh(self.fc2_actor(x_actor))
-        action_prob = torch.softmax(self.fc3_actor(x_actor), dim=-1)
-        state_value = None
-        if x_critic != None:
-            x_critic = torch.ger(x_critic, x_critic).flatten()
-            x_critic = torch.relu(self.fc1_critic(x_critic))
-            x_critic = torch.tanh(self.fc2_critic(x_critic))
-            state_value = self.fc3_critic(x_critic)
+        if self.app_type == "queue_app":
+            threshold = self.fc2_actor(x_actor)
+        else:
+            threshold_probs = torch.softmax(self.fc2_actor(x_actor), dim=-1)
+            # Take the argmax to get the discrete threshold value
+            threshold = torch.argmax(threshold_probs).item() / 10
+        if utility > threshold:
+            action_prob = torch.tensor([1.0, 0.0], requires_grad=True)
+        else:
+            action_prob = torch.tensor([0.0, 1.0], requires_grad=True)
+        x_critic = torch.relu(self.fc1_critic(x_critic))
+        state_value = self.fc2_critic(x_critic)
+    
         return action_prob, state_value
+
 
 #   Threshold Policy
 class ThrPolicy(Policy):
@@ -190,24 +202,24 @@ class ThrPolicy(Policy):
         self.threshold = threshold
 
     def forward(self, x): 
-        if x[0] > self.threshold:  # The first element of x is the utility from sprinting
+        x = x[0]
+        if x.item() > self.threshold:  # The first element of x is the utility from sprinting
             action_prob = torch.tensor([1.0, 0.0])
         else:
             action_prob = torch.tensor([0.0, 1.0])
-        return action_prob, None
+        return action_prob, 0
 
 class Server:
-    def __init__(self, server_id, policy, app, s2c_queue, c2s_queue, path, server_config, 
-                 num_servers, game_type):
+    def __init__(self, server_id, policy, app, path, server_config, 
+                 num_servers, servers_per_worker, game_type):
         self.server_id = server_id
         self.rack_state = 0  # initial state: Normal
         self.server_state = 0   # initial state: Active
         self.policy = policy    # learning policy
         self.app = app  # application
-        self.s2c_queue = s2c_queue  # store information from server to coordinator
-        self.c2s_queue = c2s_queue  # store information from coordinator to server
         self.path = path    # location of storing files
         self.num_servers = num_servers
+        self.servers_per_worker = servers_per_worker
         self.game_type = game_type  # Mean Field game or Non-Mean Field game
         self.recovery_cost = server_config["recovery_cost"]
         self.cooling_prob = server_config["cooling_prob"]   # prob. of staying cooling state
@@ -219,16 +231,27 @@ class Server:
             self.frac_sprinters = torch.zeros(1)
         else:
             self.frac_sprinters = torch.zeros(self.num_servers-1)
+        self.info_from_worker = [self.frac_sprinters, self.rack_state]
         
+    def set_info_from_worker(self, info_from_worker):
+        self.info_from_worker = info_from_worker
 
     def get_action_reward(self, network_return):
-        return
+        action_probs = network_return
+        if self.rack_state == 1:    # rack is in recovery
+            return 1, -self.recovery_cost + self.app.get_recovery_utility()
+        elif self.server_state == 0 and np.random.choice([0, 1], p=action_probs.detach().numpy()) == 0:
+            return 0, self.app.get_sprinting_utility()  # server sprints
+        else:
+            return 1, self.app.get_cooling_utility()
 
     def update_state(self, rack_state, frac_sprinters):
         self.app.update_state(self.action)
         self.rack_state = rack_state
         if self.game_type == "NMF":
-            self.frac_sprinters = np.delete(frac_sprinters, self.server_id)
+            self.frac_sprinters = torch.tensor(np.delete(frac_sprinters, self.server_id), dtype=torch.float32)
+        else:
+            self.frac_sprinters = torch.tensor(frac_sprinters)
         if self.server_state == 1:
             if np.random.rand() > self.cooling_prob:    # stay in cooling
                 self.server_state = 0
@@ -245,16 +268,7 @@ class Server:
         pass
     
     def print_learned_policy(self):
-        file_path = os.path.join(self.path, f"server_{self.server_id}_policy.txt")
-        with open(file_path, 'w+') as file:
-            utilities = self.app.utilities
-            for utility in utilities:
-                utility_tensor = torch.tensor([utility])
-                state_tensor = utility_tensor # just for markov, uniform, and normal app
-                input_tensor = [torch.cat((state_tensor, self.frac_sprinters)), None]
-                action_probs, _ = self.policy(input_tensor)
-                sprinting_prob = action_probs.detach().numpy()[0]  # assumes sprinting is action 0
-                file.write(f"{utility}\t{sprinting_prob}\n")
+        pass
 
 
     def print_reward(self, rewards):
@@ -265,23 +279,14 @@ class Server:
 
 #   server with Actor-Critic policy
 class AC_server(Server):
-    def __init__(self, server_id, policy, optimizer, app, s2c_queue, c2s_queue, path, server_config, 
-                 num_servers, game_type):
-        super().__init__(server_id, policy, app, s2c_queue, c2s_queue, path, server_config, 
-                 num_servers, game_type)
+    def __init__(self, server_id, policy, optimizer, app, path, server_config, 
+                 num_servers, servers_per_worker, game_type):
+        super().__init__(server_id, policy, app, path, server_config, 
+                 num_servers, servers_per_worker, game_type)
         self.actor_optimizer = optimizer[0]
         self.critic_optimizer = optimizer[1]
         self.state_value = torch.tensor([0.0], requires_grad=True)
-
-    def get_action_reward(self, network_return):
-        action_probs = network_return
-        if self.rack_state == 1:    # rack is in recovery
-            return 1, -self.recovery_cost + self.app.get_recovery_utility()
-        elif self.server_state == 0 and np.random.choice([0, 1], p=action_probs.detach().numpy()) == 0:
-            return 0, self.app.get_sprinting_utility()  # server sprints
-        else:
-            return 1, self.app.get_cooling_utility()
-
+        
     def update_policy(self, next_tensor):
         _, next_state_value = self.policy(next_tensor)
         advantage = self.reward + self.discount_factor * next_state_value - self.state_value
@@ -299,41 +304,50 @@ class AC_server(Server):
     def take_action(self, input_tensor):
         action_probs, self.state_value = self.policy(input_tensor)
         self.action, self.reward = self.get_action_reward(action_probs)
-        # update actor if not cooling and not emergency
         if self.rack_state == 0 and self.server_state == 0:
             self.log_prob = torch.log(action_probs[int(self.action)])
         else:
             self.log_prob = torch.tensor(0.0, requires_grad=True)
-        
+    
+    def print_learned_policy(self):
+        file_path = os.path.join(self.path, f"server_{self.server_id}_policy.txt")
+        with open(file_path, 'w+') as file:
+            utilities = sorted(self.app.utilities)
+            for utility in utilities:
+                if isinstance(self.app, QueueApp):
+                    utility = round(utility * (-0.01),3)
+                utility_tensor = torch.tensor([utility])
+                rack_state_tensor = torch.tensor([0], dtype=torch.float)
+                server_state_tensor = torch.tensor([0], dtype=torch.float)
+                input_actor_tensor = torch.cat((utility_tensor, self.frac_sprinters))
+                input_critic_tensor = torch.cat((rack_state_tensor, server_state_tensor, utility_tensor, self.frac_sprinters))
+                input_tensor = [input_actor_tensor, input_critic_tensor]
+                action_probs, _ = self.policy(input_tensor)
+                sprinting_prob = action_probs.detach().numpy()[0]  # assumes sprinting is action 0
+                file.write(f"{utility}\t{sprinting_prob}\n")
+
     def run_server(self):
-        rewards = []
-        while True:
-            info = self.c2s_queue.get()
-            if info == 'stop':
-                self.print_learned_policy()
-                self.print_reward(rewards)
-                self.app.print_state(self.server_id, self.path)
-                break
-            frac_sprinters, rack_state = info
-            self.update_state(rack_state, torch.tensor(frac_sprinters))
-            rack_state_tensor = torch.tensor([self.rack_state], dtype=torch.float)
-            server_state_tensor = torch.tensor([self.server_state], dtype=torch.float)
-            current_state_tensor = torch.tensor([self.app.get_current_state()])
-            next_tensor_actor = torch.cat((current_state_tensor, self.frac_sprinters))
-            next_tensor_critic = torch.cat((rack_state_tensor, server_state_tensor, 
-                                            current_state_tensor, self.frac_sprinters))
-            next_tensor = [next_tensor_actor, next_tensor_critic]
-            self.update_policy(next_tensor)
-            self.take_action(next_tensor)
-            self.s2c_queue.put((self.server_id, self.action))
-            rewards.append(self.reward)
+        frac_sprinters = self.info_from_worker[0]
+        rack_state = self.info_from_worker[1]
+        self.update_state(rack_state, frac_sprinters)
+        rack_state_tensor = torch.tensor([self.rack_state], dtype=torch.float)
+        server_state_tensor = torch.tensor([self.server_state], dtype=torch.float)
+        current_utility_tensor = torch.tensor([self.app.get_sprinting_utility()])
+        next_tensor_actor = torch.cat((current_utility_tensor, self.frac_sprinters))
+        next_tensor_critic = torch.cat((rack_state_tensor, server_state_tensor, 
+                                        current_utility_tensor, self.frac_sprinters))
+        
+        next_tensor = [next_tensor_actor, next_tensor_critic]
+        self.update_policy(next_tensor)
+        self.take_action(next_tensor)
+        return self.server_id, self.action, self.reward
             
 #   Server with DQN
 class Q_server(Server):
-    def __init__(self, server_id, policy, target_dqn, optimizer, app, s2c_queue, c2s_queue, path, server_config, 
-                 num_servers, game_type):
-        super().__init__(server_id, policy, app, s2c_queue, c2s_queue, path, server_config, 
-                 num_servers, game_type)
+    def __init__(self, server_id, policy, target_dqn, optimizer, app, path, server_config, 
+                 num_servers, servers_per_worker, game_type):
+        super().__init__(server_id, policy, app, path, server_config, 
+                 num_servers, servers_per_worker, game_type)
         self.optimizer = optimizer[0]
         self.q_value = torch.tensor([0.0, 1.0], requires_grad=True)
         self.dqn = policy   # DQN for getting q_value, has backpropagation
@@ -349,7 +363,7 @@ class Q_server(Server):
             return 1, self.app.get_cooling_utility()
 
     def update_policy(self, next_tensor):
-        next_q_values = self.target_dqn(next_tensor).detach()   # detach() is used to avoid backpropagation
+        next_q_values = self.target_dqn(next_tensor).detach()
         max_next_q_value = torch.max(next_q_values)
         target_q_value = self.reward + self.discount_factor * max_next_q_value
         loss_fn = torch.nn.SmoothL1Loss()
@@ -358,85 +372,56 @@ class Q_server(Server):
         loss.backward()
         self.optimizer.step()
 
-
     def take_action(self, input_tensor):
         self.q_value = self.dqn(input_tensor)
         self.action, self.reward = self.get_action_reward(self.q_value)
 
     def run_server(self):
-        rewards = []
-        while True:
-            info = self.c2s_queue.get()
-            if info == 'stop':
-                self.print_reward(rewards)
-                self.app.print_state(self.server_id, self.path)
-                break
-            frac_sprinters, rack_state = info
-            self.update_state(rack_state, torch.tensor(frac_sprinters))
-            rack_state_tensor = torch.tensor([self.rack_state], dtype=torch.float)
-            server_state_tensor = torch.tensor([self.server_state], dtype=torch.float)
-            current_state_tensor = torch.tensor([self.app.get_current_state()])
-            next_tensor = [torch.cat((rack_state_tensor, server_state_tensor, 
-                                            current_state_tensor, self.frac_sprinters))]
-            self.update_policy(next_tensor)
-            self.take_action(next_tensor)
-            self.s2c_queue.put((self.server_id, self.action))
-            rewards.append(self.reward)
+        frac_sprinters = self.info_from_worker[0]
+        rack_state = self.info_from_worker[1]
+        self.update_state(rack_state, frac_sprinters)
+        rack_state_tensor = torch.tensor([self.rack_state], dtype=torch.float)
+        server_state_tensor = torch.tensor([self.server_state], dtype=torch.float)
+        current_utility_tensor = torch.tensor([self.app.get_sprinting_utility()])
+        next_tensor = [torch.cat((rack_state_tensor, server_state_tensor, 
+                                        current_utility_tensor, self.frac_sprinters))]
+        self.update_policy(next_tensor)
+        self.take_action(next_tensor)
+        return self.server_id, self.action, self.reward
 
 #   server with threshold policy
 class Thr_server(Server):
-    def __init__(self, server_id, policy, app, s2c_queue, c2s_queue, path, server_config, 
-                 num_servers, game_type):
-        super().__init__(server_id, policy, app, s2c_queue, c2s_queue, path, server_config, 
-                 num_servers, game_type)
-        self.state_value = torch.tensor([0.0], requires_grad=True)
-
-    def get_action_reward(self, network_return):
-        action_probs = network_return
-        if self.rack_state == 1:    # rack is in recovery
-            return 1, -self.recovery_cost + self.app.get_recovery_utility()
-        elif self.server_state == 0 and np.random.choice([0, 1], p=action_probs.detach().numpy()) == 0:
-            return 0, self.app.get_sprinting_utility()  # server sprints
-        else:
-            return 1, self.app.get_cooling_utility()
+    def __init__(self, server_id, policy, app, path, server_config, 
+                 num_servers, servers_per_worker, game_type):
+        super().__init__(server_id, policy, app, path, server_config, 
+                 num_servers, servers_per_worker, game_type)
 
     def take_action(self, input_tensor):
-        action_probs, _ = self.policy(input_tensor[0])
+        action_probs, _ = self.policy(input_tensor)
         self.action, self.reward = self.get_action_reward(action_probs)
-        # update actor if not cooling and not emergency
-        if self.rack_state == 0 and self.server_state == 0:
-            self.log_prob = torch.log(action_probs[int(self.action)])
-        else:
-            self.log_prob = torch.tensor(0.0, requires_grad=True)
     
     def run_server(self):
-        rewards = []
-        while True:
-            info = self.c2s_queue.get()
-            if info == 'stop':
-                self.print_reward(rewards)
-                self.app.print_state(self.server_id, self.path)
-                break
-            frac_sprinters, rack_state = info
-            self.update_state(rack_state, torch.tensor(frac_sprinters))
-            current_state_tensor = torch.tensor([self.app.get_current_state()])
-            next_tensor = [torch.cat((current_state_tensor, self.frac_sprinters))]
-            self.take_action(next_tensor)
-            self.s2c_queue.put((self.server_id, self.action))
-            rewards.append(self.reward)
+        frac_sprinters = self.info_from_worker[0]
+        rack_state = self.info_from_worker[1]
+        self.update_state(rack_state, frac_sprinters)
+        current_utility_tensor = torch.tensor([self.app.get_sprinting_utility()])
+        next_tensor = [current_utility_tensor]
+        self.take_action(next_tensor)
+        return self.server_id, self.action, self.reward
 
 class Coordinator:
-    def __init__(self, coordinator_config, s2c_queues, c2s_queues, path, num_servers, game_type, 
+    def __init__(self, coordinator_config, w2c_queues, c2w_queues, path, num_workers, num_servers, game_type, 
                  app_type, policy_type, threshold):
         self.num_sprinters = 0  # Initialize num_sprinting
         self.num_recovery = 0 # store total number of recovery happens over rounds
         self.num_active = 0 # store total number of active rounds
+        self.num_workers = num_workers
         self.num_servers = num_servers
         self.game_type = game_type
         self.app_type = app_type
         self.decay_factor = coordinator_config["decay_factor"]  #   for fictitious play
-        self.s2c_queues = s2c_queues
-        self.c2s_queues = c2s_queues
+        self.w2c_queues = w2c_queues
+        self.c2w_queues = c2w_queues
         self.recovery_prob = coordinator_config["recovery_prob"]    # prob. for staying recovery state
         self.in_recovery = False    # flag for recovery
         self.active_count = 0   # count number of active iterations
@@ -487,7 +472,7 @@ class Coordinator:
             self.rack_states = np.zeros(self.num_servers)
 
     def run_coordinator(self):
-        actions = np.zeros(self.num_servers)
+        actions_array = np.zeros(self.num_servers)
         frac_sprinters_list = []
         i = 0
         num_active = 0
@@ -495,18 +480,22 @@ class Coordinator:
         pbar = tqdm(total=self.num_iterations, desc="Iterations")
         while i < self.num_iterations:
             rack_state_list = []
-            for q, state in zip(self.c2s_queues, self.rack_states):
-                q.put((self.frac_sprinters.tolist(), state))
-                rack_state_list.append(state)
+            # Split the array into self.num_workers parts
+            reshaped_states = np.array_split(self.rack_states, self.num_workers)
+            # Now, iterate over the queues and reshaped states
+            for q, states in zip(self.c2w_queues, reshaped_states):
+                q.put((self.frac_sprinters.tolist(), states.tolist()))
+                rack_state_list += states.tolist()
             if not all(rack_state_list) == 1:
                 num_active += 1
             elif all(rack_state_list) == 1:
                 num_recovery += 1
-            for q in self.s2c_queues:
+            for q in self.w2c_queues:
                 info = q.get()
-                server_id, action = info
-                actions[server_id] = action
-            self.aggregate_actions(actions)
+                server_ids, actions = info
+                for j, index in enumerate(server_ids):
+                    actions_array[index] = actions[j]
+            self.aggregate_actions(actions_array)
             frac_sprinters_list.append(self.frac_sprinters)
             i += 1
             pbar.update(1)
@@ -515,7 +504,7 @@ class Coordinator:
         self.num_active = num_active
         print(f"total active round: {self.num_active}")
         # Send stop to all
-        for q in self.c2s_queues:
+        for q in self.c2w_queues:
             q.put('stop')
         self.print_frac_sprinters(frac_sprinters_list)
         self.print_num_recovery()
@@ -536,10 +525,40 @@ class Coordinator:
             else:
                 file.write(f"{self.policy_type}_{self.game_type}_{self.app_type}\t{self.num_recovery}\n")
 
+class Worker:
+    def __init__(self, servers, w2c_queue, c2w_queue):
+        self.servers = servers
+        self.w2c_queue = w2c_queue
+        self.c2w_queue = c2w_queue
+        self.rewards = {}
+
+    def run_worker(self):
+        while True:
+            server_ids = []
+            actions = []
+            info = self.c2w_queue.get()
+            if info == 'stop':
+                for server in self.servers:
+                    server.print_learned_policy()
+                    server.print_reward(self.rewards[server.server_id])
+                    server.app.print_state(server.server_id, server.path)
+                break
+            frac_sprinters, rack_state = info
+            for i, server in enumerate(self.servers):
+                server.set_info_from_worker([frac_sprinters, rack_state[i]])
+                server_id, action, reward = server.run_server()
+                server_ids.append(server_id)
+                actions.append(action)
+                if server_id in self.rewards:
+                    self.rewards[server_id].append(reward)
+                else:
+                    self.rewards[server_id] = []
+                    self.rewards[server_id].append(reward)
+            self.w2c_queue.put((server_ids, actions))
+
 
 def main(config_file_name):
     start_time = time.time()
-
     with open(config_file_name, 'r') as f:
         config = json.load(f)
     folder_name = config["folder_name"]
@@ -547,6 +566,7 @@ def main(config_file_name):
     servers_config = config["servers_config"]
     app_states = config["app_states"]
     utilities = config["utilities"]
+    num_workers = config["num_workers"]
     num_servers = config["num_servers"]
     game_type = config["game_type"]
     app_type = config["app_type"]
@@ -556,10 +576,12 @@ def main(config_file_name):
     if not os.path.exists(path):
         os.makedirs(path)
 
-    s2c_queues = [Queue() for _ in range(num_servers)]
-    c2s_queues = [Queue() for _ in range(num_servers)]
-    server_processors = []
-    coordinator = Coordinator(coordinator_config, s2c_queues, c2s_queues, path, num_servers, game_type, app_type, policy_type, threshold)
+    w2c_queues = [Queue() for _ in range(num_workers)]
+    c2w_queues = [Queue() for _ in range(num_workers)]
+    servers = []
+    worker_processors = []
+    servers_per_worker = num_servers // num_workers
+    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, path, num_workers, num_servers, game_type, app_type, policy_type, threshold)
     for i in range(num_servers):
         app = None
         if "markov_app" == app_type:
@@ -575,7 +597,6 @@ def main(config_file_name):
             nominal_tps = config["nominal_tps"]
             max_queue_length = config["max_queue_length"]
             app = QueueApp(utilities, arrival_tps, sprinting_tps, nominal_tps, max_queue_length)
-
         if "ac_policy" == policy_type:
             lr_actor = config["lr_actor"]
             lr_critic = config["lr_critic"]
@@ -583,38 +604,36 @@ def main(config_file_name):
             l1_in_critic = config["l1_in_critic"]
             l1_out_l2_in_actor = config["l1_out_l2_in_actor"]
             l1_out_l2_in_critic = config["l1_out_l2_in_critic"]
-            l2_out_l3_in_actor = config["l2_out_l3_in_actor"]
-            l2_out_l3_in_critic = config["l2_out_l3_in_critic"]
-            policy = ACPolicy(l1_in_actor, l1_in_critic, l1_out_l2_in_actor, l2_out_l3_in_actor, 
-                              l1_out_l2_in_critic, l2_out_l3_in_critic)
+            policy = ACPolicy(l1_in_actor, l1_in_critic, l1_out_l2_in_actor, l1_out_l2_in_critic, app_type)
             actor_optimizer = optim.AdamW(policy.parameters(), lr_actor)
             critic_optimizer = optim.AdamW(policy.parameters(), lr_critic)
             optimizer = [actor_optimizer, critic_optimizer]
-            server = AC_server(i, policy, optimizer, app, s2c_queues[i], 
-                                c2s_queues[i], path, servers_config, num_servers, game_type)
+            server = AC_server(i, policy, optimizer, app, path, servers_config, num_servers, servers_per_worker, game_type)
         elif "thr_policy" == policy_type:
             policy = ThrPolicy(threshold)
-            server = Thr_server(i, policy, app, s2c_queues[i], 
-                                c2s_queues[i], path, servers_config, num_servers, game_type)
+            server = Thr_server(i, policy, app, path, servers_config, num_servers, servers_per_worker, game_type)
         elif "q_learning" == policy_type:
             lr_q = config["lr_q"]
             l1_in_q = config["l1_in_q"]
             l1_out_l2_in_q = config["l1_out_l2_in_q"]
-            l2_out_l3_in_q = config["l2_out_l3_in_q"]
-            dqn = QNetwork(l1_in_q, l1_out_l2_in_q, l2_out_l3_in_q)
-            target_dqn = QNetwork(l1_in_q, l1_out_l2_in_q, l2_out_l3_in_q)
-            optimizer = [optim.AdamW(dqn.parameters(), lr_q)]
-            server = Q_server(i, dqn, target_dqn, optimizer, app, s2c_queues[i], 
-                                c2s_queues[i], path, servers_config, num_servers, game_type)
-        server_processor = Process(target=server.run_server)
-        server_processors.append(server_processor)
-        server_processor.start()
+            dqn = QNetwork(l1_in_q, l1_out_l2_in_q)
+            target_dqn = QNetwork(l1_in_q, l1_out_l2_in_q)
+            optimizer = [optim.Adam(dqn.parameters(), lr_q)]
+            server = Q_server(i, dqn, target_dqn, optimizer, app, path, servers_config, num_servers, servers_per_worker, game_type)
+        servers.append(server)
     
+    split_servers = np.array_split(servers, num_workers)
+    for i, s in enumerate(split_servers):
+        worker = Worker(s, w2c_queues[i], c2w_queues[i])
+        worker_processor = Process(target=worker.run_worker)
+        worker_processors.append(worker_processor)
+        worker_processor.start()
+
     coordinator_processor = Process(target=coordinator.run_coordinator)
     coordinator_processor.start()
 
-    for server_processor in server_processors:
-        server_processor.join()
+    for worker_processor in worker_processors:
+        worker_processor.join()
     
     coordinator_processor.join()
 
