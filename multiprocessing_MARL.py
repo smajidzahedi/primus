@@ -137,7 +137,7 @@ class QueueApp(App):
 
 class Policy(nn.Module):
     def __init__(self):
-        super(Policy, self).__init__()
+        super().__init__()
 
     def forward(self, x):
         raise NotImplementedError("This method should be overridden.")
@@ -145,7 +145,7 @@ class Policy(nn.Module):
 #   Deep Q Learning
 class QNetwork(nn.Module):
     def __init__(self, l1_in, l1_out_l2_in, app_type):
-        super(QNetwork, self).__init__()
+        super().__init__()
         self.app_type = app_type
         self.fc1= nn.Linear(l1_in, l1_out_l2_in)
         init.kaiming_uniform_(self.fc1.weight, nonlinearity='relu')
@@ -161,7 +161,7 @@ class QNetwork(nn.Module):
 #   Actor Critic 
 class ACPolicy(nn.Module):
     def __init__(self, l1_in_actor, l1_in_critic, l1_out_l2_in_actor, l1_out_l2_in_critic, app_type):
-        super(ACPolicy, self).__init__()
+        super().__init__()
         self.app_type = app_type
         
         # Initialize Actor network
@@ -211,7 +211,7 @@ class ACPolicy(nn.Module):
 #   Threshold Policy
 class ThrPolicy(Policy):
     def __init__(self, threshold):
-        super(ThrPolicy, self).__init__()
+        super().__init__()
         self.threshold = threshold
 
     def forward(self, x): 
