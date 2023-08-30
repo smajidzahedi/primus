@@ -1,4 +1,4 @@
-ac_policy_MF_queue_app	-0.05060875200000001
+ac_policy_MF_queue_app	-0.003559336000000001
 q_learning_MF_queue_app	-0.030138202000000013
 thr_policy_-0.01_queue_app	-8.8692731011
 thr_policy_-0.009_queue_app	-8.854269610900001

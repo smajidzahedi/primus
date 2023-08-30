@@ -13,10 +13,7 @@ def objective(trial):
     if config["policy_type"] == "ac_policy":  
         config['lr_actor'] = trial.suggest_categorical("lr_actor", [1e-4, 2e-4, 3e-4, 
                                                                     4e-4, 5e-4, 6e-4, 
-                                                                    7e-4, 8e-4, 9e-4,
-                                                                    1e-5, 2e-5, 3e-5, 
-                                                                    4e-5, 5e-5, 6e-5, 
-                                                                    7e-5, 8e-5, 9e-5])  
+                                                                    7e-4, 8e-4, 9e-4])  
         beta = trial.suggest_categorical("beta", [1.5, 2.0, 2.5, 3.0])
         config['lr_critic'] = config['lr_actor'] * beta
         config['l1_out_l2_in_actor'] = trial.suggest_categorical("l1_out_l2_in_actor", [4, 8, 16, 32, 64, 128, 256, 512])
