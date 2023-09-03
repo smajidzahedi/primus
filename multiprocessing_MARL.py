@@ -144,9 +144,8 @@ class Policy(nn.Module):
 
 #   Deep Q Learning
 class QNetwork(nn.Module):
-    def __init__(self, l1_in, l1_out_l2_in, app_type):
+    def __init__(self, l1_in, l1_out_l2_in):
         super().__init__()
-        self.app_type = app_type
         self.fc1= nn.Linear(l1_in, l1_out_l2_in)
         init.kaiming_uniform_(self.fc1.weight, nonlinearity='relu')
         self.fc2 = nn.Linear(l1_out_l2_in, 2)
@@ -201,7 +200,7 @@ class ACPolicy(nn.Module):
             threshold = action_dist.sample()
         else:
             threshold_probs = self.forward_actor(x_actor)
-            threshold = torch.argmax(threshold_probs).item() / 10  # Take the argmax to get the discrete threshold value
+            threshold = torch.tensor([torch.argmax(threshold_probs).item() / 10])  # Take the argmax to get the discrete threshold value
         # Critic forward pass
         state_value = self.forward_critic(x_critic)
         
@@ -279,6 +278,9 @@ class Server:
         with open(file_path, 'w+') as file:
             for r in rewards:
                 file.write(f"{str(r)}\n")
+    
+    def print_policy(self):
+        pass
 
 #   server with Actor-Critic policy
 class AC_server(Server):
@@ -337,8 +339,8 @@ class AC_server(Server):
         frac_sprinters = self.info_from_worker[0]
         rack_state = self.info_from_worker[1]
         self.update_state(rack_state, frac_sprinters)
-        rack_state_tensor = torch.tensor([self.rack_state], dtype=torch.float)
-        server_state_tensor = torch.tensor([self.server_state], dtype=torch.float)
+        rack_state_tensor = torch.tensor([self.rack_state])
+        server_state_tensor = torch.tensor([self.server_state])
         current_utility_tensor = torch.tensor([self.app.get_sprinting_utility()])
         next_tensor_actor = torch.cat((current_utility_tensor, self.frac_sprinters))
         next_tensor_critic = torch.cat((rack_state_tensor, server_state_tensor, 
@@ -348,6 +350,22 @@ class AC_server(Server):
         self.update_policy(next_tensor)
         self.take_action(next_tensor)
         return self.server_id, self.action, self.reward
+    
+    def print_policy(self):
+        threshold_dict = {}
+        rack_state_tensor = torch.tensor([0])
+        server_state_tensor = torch.tensor([0])
+        for utility in self.app.utilities:
+            utility_tensor = torch.tensor([utility])
+            tensor_actor = torch.cat((utility_tensor, self.frac_sprinters))
+            tensor_critic =  torch.cat((rack_state_tensor, server_state_tensor, utility_tensor, self.frac_sprinters))
+            tensor = [tensor_actor, tensor_critic]
+            threshold, _ = self.policy(tensor)
+            threshold_dict[utility] = threshold
+        file_path = os.path.join(self.path, f"server_{self.server_id}_policy.txt")
+        with open(file_path, 'w+') as file:
+            for utility, threshold in threshold_dict.items():
+                file.write(f"{utility}\t{threshold.item()}\n")
             
 #   Server with DQN
 class Q_server(Server):
@@ -427,7 +445,7 @@ class Thr_server(Server):
 
 class Coordinator:
     def __init__(self, coordinator_config, w2c_queues, c2w_queues, path, num_workers, num_servers, game_type, 
-                 app_type, policy_type, threshold):
+                 app_type, policy_type, threshold, alpha, epsilon_bar):
         self.num_sprinters = 0  # Initialize num_sprinting
         self.num_recovery = 0 # store total number of recovery happens over rounds
         self.num_active = 0 # store total number of active rounds
@@ -456,6 +474,9 @@ class Coordinator:
         else:
             self.frac_sprinters = torch.zeros(self.num_servers)
             self.avg_frac_sprinters = torch.zeros(self.num_servers) # initial value for exponential moving average of num_sprinting
+        self.sensitivity = 1/self.num_servers
+        self.alpha = alpha
+        self.epsilon_bar = epsilon_bar
 
     #   whether system trip or not
     def is_tripped(self):
@@ -473,7 +494,7 @@ class Coordinator:
             self.active_count += 1
             self.avg_frac_sprinters *= self.decay_factor
             if self.game_type == "MF":
-                self.avg_frac_sprinters += (1 - self.decay_factor) * (self.num_sprinters / self.num_servers)
+                self.avg_frac_sprinters += (1 - self.decay_factor) * self.gaussian_mech_RDP(self.num_sprinters / self.num_servers)
             else:
                 self.avg_frac_sprinters += (1 - self.decay_factor) * (1 - actions) # since action=0 means sprint, flip 0 and 1 to calculate the frac_sprint for each server
             self.frac_sprinters = self.avg_frac_sprinters / (1 - self.decay_factor ** self.active_count)    #   Exponantial weighted moving average
@@ -486,6 +507,10 @@ class Coordinator:
             self.rack_states[recovers] = 0
         else:   #   all servers leave recovery state
             self.rack_states = np.zeros(self.num_servers)
+    
+    def gaussian_mech_RDP(self, scalar):
+        sigma = np.sqrt((self.sensitivity ** 2 * self.alpha) / (2 * self.epsilon_bar))
+        return scalar + np.random.normal(loc=0, scale=sigma)
 
     def run_coordinator(self):
         actions_array = np.zeros(self.num_servers)
@@ -555,6 +580,7 @@ class Worker:
             info = self.c2w_queue.get()
             if info == 'stop':
                 for server in self.servers:
+                    server.print_policy()
                     server.print_reward(self.rewards[server.server_id])
                     server.app.print_state(server.server_id, server.path)
                 break
@@ -587,6 +613,8 @@ def main(config_file_name):
     app_type = config["app_type"]
     policy_type = config["policy_type"]
     threshold = config["threshold"]
+    alpha = config["alpha"]
+    epsilon_bar = config["epsilon_bar"]
     path = f"{folder_name}/{num_servers}_server/{app_type}"
     if not os.path.exists(path):
         os.makedirs(path)
@@ -596,7 +624,7 @@ def main(config_file_name):
     servers = []
     worker_processors = []
     servers_per_worker = num_servers // num_workers
-    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, path, num_workers, num_servers, game_type, app_type, policy_type, threshold)
+    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, path, num_workers, num_servers, game_type, app_type, policy_type, threshold, alpha, epsilon_bar)
     for i in range(num_servers):
         app = None
         if "markov_app" == app_type:
@@ -621,9 +649,13 @@ def main(config_file_name):
             l1_out_l2_in_critic = config["l1_out_l2_in_critic"]
             policy = ACPolicy(l1_in_actor, l1_in_critic, l1_out_l2_in_actor, l1_out_l2_in_critic, app_type)
             # Create an Adam optimizer for the actor
-            actor_params = [policy.actor_layer1.weight, policy.actor_layer1.bias,
-                            policy.actor_layer2_mean.weight, policy.actor_layer2_mean.bias,
-                            policy.actor_layer2_std.weight, policy.actor_layer2_std.bias]
+            if app_type == "queue_app":
+                actor_params = [policy.actor_layer1.weight, policy.actor_layer1.bias,
+                                policy.actor_layer2_mean.weight, policy.actor_layer2_mean.bias,
+                                policy.actor_layer2_std.weight, policy.actor_layer2_std.bias]
+            else:
+                actor_params = [policy.actor_layer1.weight, policy.actor_layer1.bias,
+                                policy.actor_layer2.weight, policy.actor_layer2.bias]
 
             actor_optimizer = optim.Adam(actor_params, lr=lr_actor)
 

@@ -44,6 +44,7 @@ def main():
             policies = np.loadtxt(policy_file_path)[:,1]
             policies_from_servers[i] = policies
     mean_rewards = rewards_from_servers.mean(axis=0)
+    mean_policies = policies_from_servers.mean(axis=0)
 
     plt.figure(figsize=(25, 10))
     plt.plot(mean_rewards)
@@ -55,6 +56,18 @@ def main():
         plt.savefig(os.path.join(location, f'{app_type}_{policy}_mean_rewards.png'))
     else:
         plt.savefig(os.path.join(location, f'{game_type}_{app_type}_{policy}_mean_rewards.png'))
+    plt.close()
+
+    plt.figure(figsize=(25, 10))
+    plt.scatter(utilities, mean_policies)
+    for i, txt in enumerate(mean_policies):
+        plt.annotate(f"{txt:.4f}", (utilities[i], mean_policies[i]), textcoords="offset points", xytext=(0, 10), ha='center')
+    plt.xlabel('Utility')
+    plt.ylabel('Threshold')
+    plt.title('Selected Theshold for Different Utilities')
+    plt.grid(True)
+    if policy == "ac_policy":
+        plt.savefig(os.path.join(location, f'{game_type}_{app_type}_{policy}_policy.png'))
     plt.close()
 
     #   calculate average reward over rounds for different policy 
