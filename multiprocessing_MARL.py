@@ -43,6 +43,9 @@ class App:
                 file.write(f"{str(h)}\n")
 
 
+"""
+State transition follows Markov process
+"""
 class MarkovApp(App):
     def __init__(self, app_states, transition_matrix, utilities, initial_state):
         super().__init__()
@@ -61,6 +64,10 @@ class MarkovApp(App):
         probabilities = self.transition_matrix[index]
         self.current_state = np.random.choice(self.app_states, p=probabilities)
 
+
+"""
+State transition follows Unifrom distribution
+"""
 class UniformApp(App):
     def __init__(self, app_states, utilities):
         super().__init__()
@@ -75,6 +82,10 @@ class UniformApp(App):
         super().update_state(action)
         self.current_state = np.random.choice(self.app_states)
 
+
+"""
+State transition follows Normal distribution
+"""
 class NormalApp(App):
     def __init__(self, app_states, utilities):
         super().__init__()
@@ -100,6 +111,9 @@ class NormalApp(App):
         self.current_state = np.random.choice(self.app_states, p=self.prob)
 
 
+"""
+Queue application uses Poisson distribution to model events that occur randomly and independently.
+"""
 class QueueApp(App):
     def __init__(self, utilities, arrival_tps, sprinting_tps, nominal_tps,
                  max_queue_length=1000):
@@ -142,12 +156,15 @@ class Policy(nn.Module):
     def forward(self, x):
         raise NotImplementedError("This method should be overridden.")
 
-#   Deep Q Learning
+
+"""
+Deep Q Network with two fully connected layers.
+Return q values of sprint and not sprint.
+"""
 class QNetwork(nn.Module):
     def __init__(self, l1_in, l1_out_l2_in):
         super().__init__()
         self.fc1= nn.Linear(l1_in, l1_out_l2_in)
-        init.kaiming_uniform_(self.fc1.weight, nonlinearity='relu')
         self.fc2 = nn.Linear(l1_out_l2_in, 2)
 
     def forward(self, x):
@@ -157,7 +174,16 @@ class QNetwork(nn.Module):
         return q_values
 
 
-#   Actor Critic 
+"""
+Actor Critic Policy
+Actor network and Critic network, both of them have two fully connected layers.
+Actor network returns a threshold value.
+Critic network returns a state value.
+The class is tailored to handle two types of applications, 
+defined by the variable app_type: queue_app and other three app_type.
+For queue_app, the actor network return mean and standard deviation for a normal distribution.
+For other three types of application, it return a class of probabilities.
+"""
 class ACPolicy(nn.Module):
     def __init__(self, l1_in_actor, l1_in_critic, l1_out_l2_in_actor, l1_out_l2_in_critic, app_type):
         super().__init__()
@@ -207,7 +233,12 @@ class ACPolicy(nn.Module):
         return threshold, state_value
 
     
-#   Threshold Policy
+"""
+Threshold Policy
+Comparing given threshold value and current utility value.
+If current utility value is higher than the given threshold value --> sprint.
+Else --> not sprint
+"""
 class ThrPolicy(Policy):
     def __init__(self, threshold):
         super().__init__()
@@ -244,13 +275,15 @@ class Server:
         else:
             self.frac_sprinters = torch.zeros(self.num_servers-1)
         self.info_from_worker = [self.frac_sprinters, self.rack_state]
-        
+
+    # Sending information to worker 
     def set_info_from_worker(self, info_from_worker):
         self.info_from_worker = info_from_worker
 
     def get_action_reward(self, network_return):
         pass
 
+    # update application state, rack_state, server_state, and fractional number of sprinters.
     def update_state(self, rack_state, frac_sprinters):
         self.app.update_state(self.action)
         self.rack_state = rack_state
@@ -273,6 +306,7 @@ class Server:
     def run_server(self):
         pass
 
+    # write reward into files
     def print_reward(self, rewards):
         file_path = os.path.join(self.path, f"server_{self.server_id}_reward.txt")
         with open(file_path, 'w+') as file:
@@ -292,7 +326,8 @@ class AC_server(Server):
         self.critic_optimizer = optimizer[1]
         self.state_value = torch.tensor([0.0])
         self.threshold = torch.tensor([0.0])
-        
+
+    # Update Actor and Critic networks' parameters
     def update_policy(self, next_tensor):
         if isinstance(self.app, QueueApp):
             mean, std = self.policy.forward_actor(next_tensor[0])
@@ -318,10 +353,12 @@ class AC_server(Server):
         value_loss.backward()
         self.critic_optimizer.step()
 
+    # get threshold value and state value from AC_Policy network, choose sprint or not and get immediate reward
     def take_action(self, input_tensor):
         self.threshold, self.state_value = self.policy(input_tensor)
         self.action, self.reward = self.get_action_reward(self.threshold)
 
+    # Given threshold value, choose sprint or not, and get immediate reward
     def get_action_reward(self, network_return):
         threshold = network_return.item()
         if self.app.get_sprinting_utility() > threshold:
@@ -335,6 +372,7 @@ class AC_server(Server):
         else:
             return 1, self.app.get_cooling_utility()
     
+    # Run server function, return server's id, action and reward which are send to worker.
     def run_server(self):
         frac_sprinters = self.info_from_worker[0]
         rack_state = self.info_from_worker[1]
@@ -351,6 +389,7 @@ class AC_server(Server):
         self.take_action(next_tensor)
         return self.server_id, self.action, self.reward
     
+    # Testing procedure, get threshold value when seeing different utility values.
     def print_policy(self):
         threshold_dict = {}
         rack_state_tensor = torch.tensor([0])
@@ -378,15 +417,8 @@ class Q_server(Server):
         self.dqn = policy   # DQN for getting q_value, has backpropagation
         self.target_dqn = target_dqn    #   target DQN for getting next_q_value, no backpropagation
 
-    def get_action_reward(self, network_return):
-        q_values = network_return
-        if self.rack_state == 1:    # rack is in recovery
-            return 1, -self.recovery_cost + self.app.get_recovery_utility()
-        elif self.server_state == 0 and torch.argmax(q_values).item() == 0:
-            return 0, self.app.get_sprinting_utility()  # server sprints
-        else:
-            return 1, self.app.get_cooling_utility()
 
+    # Update DQN parameters
     def update_policy(self, next_tensor):
         next_q_values = self.target_dqn(next_tensor).detach()
         max_next_q_value = torch.max(next_q_values)
@@ -397,10 +429,22 @@ class Q_server(Server):
         loss.backward()
         self.optimizer.step()
 
+    # get q value from DQN, choose sprint or not and get immediate reward
     def take_action(self, input_tensor):
         self.q_value = self.dqn(input_tensor)
         self.action, self.reward = self.get_action_reward(self.q_value)
 
+    # Choose sprint or not by given q values, and get immediate reward
+    def get_action_reward(self, network_return):
+        q_values = network_return
+        if self.rack_state == 1:    # rack is in recovery
+            return 1, -self.recovery_cost + self.app.get_recovery_utility()
+        elif self.server_state == 0 and torch.argmax(q_values).item() == 0:
+            return 0, self.app.get_sprinting_utility()  # server sprints
+        else:
+            return 1, self.app.get_cooling_utility()
+
+    # Run server function, return server's id, action and reward which are send to worker.
     def run_server(self):
         frac_sprinters = self.info_from_worker[0]
         rack_state = self.info_from_worker[1]
@@ -414,17 +458,20 @@ class Q_server(Server):
         self.take_action(next_tensor)
         return self.server_id, self.action, self.reward
 
-#   server with threshold policy
+#  server with threshold policy.
+#  it is a fixed policy, so it doesn't need update policy
 class Thr_server(Server):
     def __init__(self, server_id, policy, app, path, server_config, 
                  num_servers, servers_per_worker, game_type):
         super().__init__(server_id, policy, app, path, server_config, 
                  num_servers, servers_per_worker, game_type)
 
+    # Get sprinting probability from Thr_Policy, and choose sprint or not by this probability, and get immediate reward
     def take_action(self, input_tensor):
         action_probs = self.policy(input_tensor)
         self.action, self.reward = self.get_action_reward(action_probs)
 
+    # Given sprinting probability, choose sprint or not, and get immediate reward
     def get_action_reward(self, network_return):
         action_probs = network_return
         if self.rack_state == 1:    # rack is in recovery
@@ -434,6 +481,7 @@ class Thr_server(Server):
         else:
             return 1, self.app.get_cooling_utility()
     
+    # Run server function, return server's id, action and reward which are send to worker.
     def run_server(self):
         frac_sprinters = self.info_from_worker[0]
         rack_state = self.info_from_worker[1]
@@ -443,6 +491,11 @@ class Thr_server(Server):
         self.take_action(next_tensor)
         return self.server_id, self.action, self.reward
 
+"""
+An independent processor. Get information from each server, 
+and send rack state and frac_sprinters back to each of them. 
+Determining system trip or not.
+"""
 class Coordinator:
     def __init__(self, coordinator_config, w2c_queues, c2w_queues, path, num_workers, num_servers, game_type, 
                  app_type, policy_type, threshold, alpha, epsilon_bar):
@@ -466,7 +519,7 @@ class Coordinator:
         self.num_iterations = coordinator_config["num_iterations"]
         self.path = path
         self.policy_type = policy_type
-        self.threshold = threshold
+        self.threshold = threshold  # Given threshold value, when policy_type == Thr_Policy
         self.coordinator_config = coordinator_config
         if self.game_type == "MF":
             self.frac_sprinters = torch.zeros(1)
@@ -474,15 +527,18 @@ class Coordinator:
         else:
             self.frac_sprinters = torch.zeros(self.num_servers)
             self.avg_frac_sprinters = torch.zeros(self.num_servers) # initial value for exponential moving average of num_sprinting
-        self.sensitivity = 1/self.num_servers
-        self.alpha = alpha
-        self.epsilon_bar = epsilon_bar
+        self.sensitivity = 1/self.num_servers # sensitivity for differential privacy
+        self.alpha = alpha  # Rényi Divergence Order 
+        self.epsilon_bar = epsilon_bar # Privacy budget
 
     #   whether system trip or not
     def is_tripped(self):
         prob = min(max((np.mean(self.frac_sprinters.tolist()) - self.min_frac) / (self.max_frac - self.min_frac), 0), 1)
         return np.random.rand() < prob
 
+    # Calculate number of sprinters in this round, determining whether system trip or not.
+    # Calculate the fractional number of sprinters by Bias-Corrected Exponential Weighted Moving Average
+    # Add noise on the fraction number of sprinters in this round (# of sprinters / total # of servers)
     def aggregate_actions(self, actions):
         self.num_sprinters = self.num_servers - actions.sum()
         if self.in_recovery:
@@ -496,9 +552,9 @@ class Coordinator:
             if self.game_type == "MF":
                 self.avg_frac_sprinters += (1 - self.decay_factor) * self.gaussian_mech_RDP(self.num_sprinters / self.num_servers)
             else:
-                self.avg_frac_sprinters += (1 - self.decay_factor) * (1 - actions) # since action=0 means sprint, flip 0 and 1 to calculate the frac_sprint for each server
+                self.avg_frac_sprinters += (1 - self.decay_factor) * self.gaussian_mech_RDP(1 - actions) # since action=0 means sprint, flip 0 and 1 to calculate the frac_sprint for each server
             self.frac_sprinters = self.avg_frac_sprinters / (1 - self.decay_factor ** self.active_count)    #   Exponantial weighted moving average
-
+        # release servers from recovery state randomly
         if self.in_recovery:
             self.rack_states = np.ones(self.num_servers)
         elif np.count_nonzero(self.rack_states) >= self.num_servers * self.release_frac: # randomly select servers leave recovery state
@@ -508,10 +564,12 @@ class Coordinator:
         else:   #   all servers leave recovery state
             self.rack_states = np.zeros(self.num_servers)
     
+    # Rényi Differential Privacy
     def gaussian_mech_RDP(self, scalar):
         sigma = np.sqrt((self.sensitivity ** 2 * self.alpha) / (2 * self.epsilon_bar))
         return scalar + np.random.normal(loc=0, scale=sigma)
 
+    # Main function for coordinator
     def run_coordinator(self):
         actions_array = np.zeros(self.num_servers)
         frac_sprinters_list = []
@@ -527,10 +585,11 @@ class Coordinator:
             for q, states in zip(self.c2w_queues, reshaped_states):
                 q.put((self.frac_sprinters.tolist(), states.tolist()))
                 rack_state_list += states.tolist()
-            if not all(rack_state_list) == 1:
+            if not all(rack_state_list) == 1: # count number of non-recovery iterations
                 num_active += 1
             elif all(rack_state_list) == 1:
-                num_recovery += 1
+                num_recovery += 1   # count number of recovery iterations
+            # get information from workers
             for q in self.w2c_queues:
                 info = q.get()
                 server_ids, actions = info
@@ -550,7 +609,7 @@ class Coordinator:
         self.print_frac_sprinters(frac_sprinters_list)
         self.print_num_recovery()
 
-
+    # Record fractional number of sprinters in each iterations
     def print_frac_sprinters(self, frac_sprinters_list):
         file_path = os.path.join(self.path, "frac_sprinters.txt")
         with open(file_path, 'w+') as file:
@@ -558,6 +617,7 @@ class Coordinator:
                 #fs_num = round(np.mean(fs.tolist()), 2)
                 file.write(f"{fs.tolist()[0]}\n")
     
+    # Record total number of recovery iterations 
     def print_num_recovery(self):
         file_path = os.path.join(self.path, f"{self.app_type}_num_recovery.txt")
         with open(file_path, 'a+') as file:
@@ -566,6 +626,10 @@ class Coordinator:
             else:
                 file.write(f"{self.policy_type}_{self.game_type}_{self.app_type}\t{self.num_recovery}\n")
 
+"""
+Workers are also independent processors. Each worker manages several servers. 
+Workers get information from their servers, and send servers' information to coordinator, and vice versa.
+"""
 class Worker:
     def __init__(self, servers, w2c_queue, c2w_queue):
         self.servers = servers
@@ -596,6 +660,7 @@ class Worker:
                     self.rewards[server_id] = []
                     self.rewards[server_id].append(reward)
             self.w2c_queue.put((server_ids, actions))
+
 
 
 def main(config_file_name):
