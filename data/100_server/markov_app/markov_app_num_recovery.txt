@@ -1,5 +1,5 @@
-ac_policy_MF_markov_app	151
-q_learning_MF_markov_app	13
+ac_policy_MF_markov_app	57
+q_learning_MF_markov_app	6
 thr_policy_0.0_markov_app	14528
 thr_policy_0.1_markov_app	14528
 thr_policy_0.2_markov_app	14016
@@ -10,3 +10,4 @@ thr_policy_0.6_markov_app	6
 thr_policy_0.7_markov_app	0
 thr_policy_0.8_markov_app	0
 thr_policy_0.9_markov_app	0
+ac_policy_MF_markov_app_no_noise	53

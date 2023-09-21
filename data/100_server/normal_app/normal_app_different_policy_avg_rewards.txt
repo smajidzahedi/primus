@@ -1,5 +1,5 @@
-ac_policy_MF_normal_app	0.176014
-q_learning_MF_normal_app	0.148999
+ac_policy_MF_normal_app	0.17849399999999999
+q_learning_MF_normal_app	0.14895999999999998
 thr_policy_0.0_normal_app	-11.9860903
 thr_policy_0.1_normal_app	-11.9860903
 thr_policy_0.2_normal_app	-11.833527133333334
@@ -10,3 +10,4 @@ thr_policy_0.6_normal_app	-4.4132880000000005
 thr_policy_0.7_normal_app	0.14711900000000003
 thr_policy_0.8_normal_app	0.14711900000000003
 thr_policy_0.9_normal_app	0.05344333333333334
+ac_policy_MF_normal_app_no_noise	0.17882900000000002

@@ -8,11 +8,15 @@ def objective(trial):
     with open('config.json', 'r') as f:
         config = json.load(f)
     a = trial.suggest_categorical("a", [2, 4, 6, 8, 10])
-    config["epsilon_bar"] = trial.suggest_categorical("epsilon_bar", [0.01, 0.1, 1])
+    if config['coordinator_config']["noise"] == 1:
+        config["epsilon_bar"] = trial.suggest_categorical("epsilon_bar", [0.01, 0.1, 1])
     if config["policy_type"] == "ac_policy":  
         config['lr_actor'] = trial.suggest_categorical("lr_actor", [1e-4, 2e-4, 3e-4, 
                                                                     4e-4, 5e-4, 6e-4, 
-                                                                    7e-4, 8e-4, 9e-4])  
+                                                                    7e-4, 8e-4, 9e-4,
+                                                                    1e-5, 2e-5, 3e-5, 
+                                                                    4e-5, 5e-5, 6e-5, 
+                                                                    7e-5, 8e-5, 9e-5,])  
         b = trial.suggest_categorical("b", [1.5, 2.0, 2.5, 3.0])
         config['lr_critic'] = config['lr_actor'] * b
         config['l1_out_l2_in_actor'] = trial.suggest_categorical("l1_out_l2_in_actor", [4, 8, 16, 32, 64])
@@ -60,6 +64,8 @@ with open('config.json', 'r') as f:
     config = json.load(f)
 
 # Update the parameters in the config
+if config['coordinator_config']["noise"] == 1:
+    config["epsilon_bar"] = best_params["epsilon_bar"]
 if config["policy_type"] == "ac_policy":  
     config['lr_actor'] = best_params["lr_actor"]
     config['lr_critic'] = best_params["lr_actor"] * best_params["b"]
@@ -71,10 +77,17 @@ elif config["policy_type"] == "q_learning":
     config["lr_q"] = best_params["lr_q"]
     config['coordinator_config']['decay_factor'] = 1 - best_params["a"] * best_params["lr_q"]
 config['servers_config']['recovery_cost'] = best_params["recovery_cost"]
-config["epsilon_bar"] = best_params["epsilon_bar"]
-if config["app_type"] == "queue_app":
-    config["max_queue_length"] = best_params["max_queue_length"]
+
 
 # Save the updated configuration file
-with open('config.json', 'w') as f:
+app_type = config["app_type"]
+noise = config['coordinator_config']["noise"]
+if noise == 1:
+    with open(f"{app_type}_noise_change_arrival_tps_config.json", 'w') as f:
+        json.dump(config, f, indent=4)
+else:
+    with open(f"{app_type}_no_noise_config.json", 'w') as f:
+        json.dump(config, f, indent=4)
+
+with open("config.json", 'w') as f:
     json.dump(config, f, indent=4)

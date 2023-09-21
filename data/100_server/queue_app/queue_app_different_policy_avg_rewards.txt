@@ -1,5 +1,5 @@
-ac_policy_MF_queue_app	-0.003559420000000001
-q_learning_MF_queue_app	-0.029957932000000007
+ac_policy_MF_queue_app	-0.003540644000000001
+q_learning_MF_queue_app	-0.003555054000000001
 thr_policy_-0.01_queue_app	-6.409530954600001
 thr_policy_-0.009_queue_app	-6.3844601357
 thr_policy_-0.008_queue_app	-6.386262283600001
@@ -10,5 +10,3 @@ thr_policy_-0.004_queue_app	-6.3254421049000005
 thr_policy_-0.003_queue_app	-0.081163504
 thr_policy_-0.002_queue_app	-0.081163504
 thr_policy_-0.001_queue_app	-0.081163504
-ac_policy_MF_queue_app	-0.003559420000000001
-ac_policy_MF_queue_app	-0.003559420000000001

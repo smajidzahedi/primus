@@ -1,4 +1,4 @@
-ac_policy_MF_normal_app	26
+ac_policy_MF_normal_app	1331
 q_learning_MF_normal_app	6
 thr_policy_0.0_normal_app	14106
 thr_policy_0.1_normal_app	14106
@@ -10,3 +10,4 @@ thr_policy_0.6_normal_app	5211
 thr_policy_0.7_normal_app	0
 thr_policy_0.8_normal_app	0
 thr_policy_0.9_normal_app	0
+ac_policy_MF_normal_app_no_noise	11

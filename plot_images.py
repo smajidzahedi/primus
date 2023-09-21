@@ -11,8 +11,7 @@ def main():
     num_servers = config["num_servers"]
     num_iterations = coordinator_config["num_iterations"]
     folder_name = config["folder_name"]
-    game_type = config["game_type"] 
-    utilities = config["utilities"]
+    game_type = config["game_type"]
     num_servers = config["num_servers"]
     app_type = config["app_type"]
     location = f"{folder_name}/{num_servers}_server/{app_type}"   
@@ -34,17 +33,11 @@ def main():
     plt.close()
 
     rewards_from_servers = np.empty([num_servers, num_iterations])
-    policies_from_servers = np.empty([num_servers, len(utilities)])
     for i in range(num_servers):
         reward_file_path = os.path.join(location, f"server_{i}_reward.txt")
         rewards = np.loadtxt(reward_file_path)
         rewards_from_servers[i] = rewards
-        if policy == "ac_policy":
-            policy_file_path = os.path.join(location, f"server_{i}_policy.txt")
-            policies = np.loadtxt(policy_file_path)[:,1]
-            policies_from_servers[i] = policies
     mean_rewards = rewards_from_servers.mean(axis=0)
-    mean_policies = policies_from_servers.mean(axis=0)
 
     plt.figure(figsize=(25, 10))
     plt.plot(mean_rewards)
@@ -56,18 +49,6 @@ def main():
         plt.savefig(os.path.join(location, f'{app_type}_{policy}_mean_rewards.png'))
     else:
         plt.savefig(os.path.join(location, f'{game_type}_{app_type}_{policy}_mean_rewards.png'))
-    plt.close()
-
-    plt.figure(figsize=(25, 10))
-    plt.scatter(utilities, mean_policies)
-    for i, txt in enumerate(mean_policies):
-        plt.annotate(f"{txt:.4f}", (utilities[i], mean_policies[i]), textcoords="offset points", xytext=(0, 10), ha='center')
-    plt.xlabel('Utility')
-    plt.ylabel('Threshold')
-    plt.title('Selected Theshold for Different Utilities')
-    plt.grid(True)
-    if policy == "ac_policy":
-        plt.savefig(os.path.join(location, f'{game_type}_{app_type}_{policy}_policy.png'))
     plt.close()
 
     #   calculate average reward over rounds for different policy 
@@ -108,6 +89,7 @@ def main():
         else:
             plt.savefig(os.path.join(location, f'{game_type}_{app_type}_{policy}_queue_length.png'))
         plt.close()
+        
     return avg_reward
 
 if __name__ == "__main__":
