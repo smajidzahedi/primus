@@ -17,7 +17,7 @@ set_seed(42)
 class App:
     def __init__(self):
         self.app_state_history = []
-        self.current_state = None
+        self.current_state_ewma = None
 
     def get_sprinting_utility(self):
         raise NotImplementedError("This method should be overridden.")
@@ -32,7 +32,7 @@ class App:
         return float(self.current_state)
 
     def update_state(self, action):
-        self.app_state_history.append(self.current_state)
+        self.app_state_history.append(self.current_state_ewma)
 
     def print_state(self, server_id, path):
         file_path = os.path.join(path, f"server_{server_id}_app_state.txt")
@@ -57,7 +57,7 @@ class MarkovApp(App):
         return self.utilities[index]
 
     def update_state(self, action):
-        super().update_state(action)
+        #super().update_state(action)
         index = self.app_states.index(self.current_state)
         probabilities = self.transition_matrix[index]
         self.current_state = np.random.choice(self.app_states, p=probabilities)
@@ -77,7 +77,7 @@ class UniformApp(App):
         return self.utilities[self.app_states.index(self.current_state)]
 
     def update_state(self, action):
-        super().update_state(action)
+        #super().update_state(action)
         self.current_state = np.random.choice(self.app_states)
 
 
@@ -105,7 +105,7 @@ class NormalApp(App):
         return self.utilities[self.app_states.index(self.current_state)]
     
     def update_state(self, action):
-        super().update_state(action)
+        #super().update_state(action)
         self.current_state = np.random.choice(self.app_states, p=self.prob)
 
 
@@ -119,9 +119,11 @@ class QueueApp(App):
         self.utilities = utilities
         self.arrival_tps = arrival_tps
         self.current_state = 0
+        self.current_state_ewma = None
         self.sprinting_tps = sprinting_tps
         self.nominal_tps = nominal_tps
         self.max_queue_length = max_queue_length
+        self.decay_factor = 0.99
     
     #   current state for queue app is the current queue length in range 0 to 1
     def get_current_state(self):
@@ -138,14 +140,16 @@ class QueueApp(App):
 
 
     def update_state(self, action):
-        super().update_state(action)
         arrived_tasks = np.random.poisson(self.arrival_tps)
         departed_tasks = min(self.current_state, np.random.poisson(self.nominal_tps))
         if action == 0:
             departed_tasks = min(self.current_state, np.random.poisson(self.sprinting_tps))
         self.current_state = self.current_state + arrived_tasks - departed_tasks
-
-    
+        if self.current_state_ewma is None:  # If this is the first state
+            self.current_state_ewma = self.current_state
+        else:
+            self.current_state_ewma = self.decay_factor * self.current_state_ewma + (1 - self.decay_factor) * self.current_state
+        super().update_state(action)
 
 class Policy(nn.Module):
     def __init__(self):
@@ -376,8 +380,8 @@ class AC_server(Server):
         frac_sprinters = self.info_from_worker[0]
         rack_state = self.info_from_worker[1]
         self.iter = self.info_from_worker[2]
-        #if self.iter == 4999 and isinstance(self.app, QueueApp):
-            #self.app.arrival_tps = 18 # increase 20%
+        if self.iter == 20000 and isinstance(self.app, QueueApp):
+            self.app.arrival_tps = 18 # increase 20%
         self.update_state(rack_state, frac_sprinters)
         rack_state_tensor = torch.tensor([self.rack_state])
         server_state_tensor = torch.tensor([self.server_state])
@@ -644,7 +648,8 @@ class Worker:
             if info == 'stop':
                 for server in self.servers:
                     server.print_reward(self.rewards[server.server_id])
-                    server.app.print_state(server.server_id, server.path)
+                    if isinstance(server.app, QueueApp):
+                        server.app.print_state(server.server_id, server.path)
                 break
             frac_sprinters, rack_state, iter = info
             for i, server in enumerate(self.servers):
@@ -763,7 +768,7 @@ def main(config_file_name):
     
 
 if __name__ == "__main__":
-    config_file = "/Users/jingyiwu/Desktop/MARL/markov_app_noise_config.json"
+    config_file = "/Users/jingyiwu/Desktop/MARL/config.json"
     main(config_file)
 
     

@@ -1,4 +1,4 @@
-ac_policy_MF_uniform_app	0.187362
+ac_policy_MF_uniform_app	0.186532
 q_learning_MF_uniform_app	0.138111
 thr_policy_0.0_uniform_app	-6.908640933333333
 thr_policy_0.1_uniform_app	-6.908640933333333
@@ -10,4 +10,4 @@ thr_policy_0.6_uniform_app	-0.0048892333333333355
 thr_policy_0.7_uniform_app	0.16013023333333337
 thr_policy_0.8_uniform_app	0.16013023333333337
 thr_policy_0.9_uniform_app	0.08282666666666667
-ac_policy_MF_uniform_app_no_noise	0.187815
+ac_policy_MF_uniform_app_no_noise	0.18616199999999997
