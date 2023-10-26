@@ -9,7 +9,6 @@ def main():
 
     coordinator_config = config["coordinator_config"]
     num_servers = config["num_servers"]
-    num_iterations = coordinator_config["num_iterations"]
     folder_name = config["folder_name"]
     game_type = config["game_type"]
     num_servers = config["num_servers"]
@@ -20,6 +19,7 @@ def main():
     policy = config["policy_type"]
     frac_sprinters_path = os.path.join(location, "frac_sprinters.txt")
     frac_sprinters = np.loadtxt(frac_sprinters_path)
+    total_iter = frac_sprinters.shape[0]
     plt.figure(figsize=(25, 10))
     plt.plot(frac_sprinters)
     plt.xlabel("Iterations")
@@ -32,7 +32,7 @@ def main():
         plt.savefig(os.path.join(location, f"{game_type}_{app_type}_{policy}_frac_sprinter.png"))
     plt.close()
 
-    rewards_from_servers = np.empty([num_servers, num_iterations])
+    rewards_from_servers = np.empty([num_servers, total_iter])
     for i in range(num_servers):
         reward_file_path = os.path.join(location, f"server_{i}_reward.txt")
         rewards = np.loadtxt(reward_file_path)
@@ -66,7 +66,7 @@ def main():
 
     if app_type == "queue_app":
         # Iterate over all 10 servers
-        x = list(range(1, num_iterations+1))
+        x = list(range(1, total_iter+1))
         plt.figure(figsize=(40, 20)) 
         for server_id in range(num_servers):
             y = []  # Initialize the y-axis
@@ -76,7 +76,7 @@ def main():
             for line in lines:
                 y.append(float(line.strip()))  # Convert each line to a float and append to the y-axis
             plt.plot(x, y, label=f'Server {server_id}')
-        x_ticks = list(range(0, num_iterations, 10000))
+        x_ticks = list(range(0, total_iter, 10000))
         x_tick_labels = [str(tick) for tick in x_ticks]  # Convert tick values to strings
         plt.xticks(x_ticks, x_tick_labels, rotation=45)
         plt.legend(ncol=2, bbox_to_anchor=(1, 1))

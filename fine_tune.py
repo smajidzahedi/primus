@@ -8,8 +8,6 @@ def objective(trial):
     with open('config.json', 'r') as f:
         config = json.load(f)
     a = trial.suggest_categorical("a", [2, 4, 6, 8, 10])
-    if config['coordinator_config']["noise"] == 1:
-        config["epsilon_bar"] = trial.suggest_categorical("epsilon_bar", [0.01, 0.1, 1])
     if config["policy_type"] == "ac_policy":  
         config['lr_actor'] = trial.suggest_categorical("lr_actor", [1e-4, 2e-4, 3e-4, 
                                                                     4e-4, 5e-4, 6e-4, 
@@ -23,13 +21,13 @@ def objective(trial):
         config['l1_out_l2_in_critic'] = trial.suggest_categorical("l1_out_l2_in_critic", [8, 16, 32, 64])
         decay_factor = 1 - a * config['lr_actor']
     elif config["policy_type"] == "q_learning":
-        config["l1_out_l2_in_q"] = trial.suggest_categorical("l1_out_l2_in_q", [8, 16, 32, 64])
+        config["l1_out_l2_in_q"] = trial.suggest_categorical("l1_out_l2_in_q", [32, 64, 128, 256])
         config["lr_q"] = trial.suggest_categorical("lr_q", [1e-4, 2e-4, 3e-4, 
                                                             4e-4, 5e-4, 6e-4, 
                                                             7e-4, 8e-4, 9e-4,
-                                                            1e-5, 2e-5, 3e-5, 
-                                                            4e-5, 5e-5, 6e-5, 
-                                                            7e-5, 8e-5, 9e-5])
+                                                            1e-3, 2e-3, 3e-3, 
+                                                            4e-3, 5e-3, 6e-3, 
+                                                            7e-3, 8e-3, 9e-3])
         decay_factor = 1 - a * config["lr_q"]
     # Update the parameters in the config
     config['servers_config']['recovery_cost'] = trial.suggest_int("recovery_cost", 10, 30, 1)
@@ -60,12 +58,10 @@ print(study.best_params)
 best_params = study.best_params
 
 # Load the existing configuration file
-with open('config.json', 'r') as f:
+with open('/Users/jingyiwu/Desktop/MARL/config.json', 'r') as f:
     config = json.load(f)
 
 # Update the parameters in the config
-if config['coordinator_config']["noise"] == 1:
-    config["epsilon_bar"] = best_params["epsilon_bar"]
 if config["policy_type"] == "ac_policy":  
     config['lr_actor'] = best_params["lr_actor"]
     config['lr_critic'] = best_params["lr_actor"] * best_params["b"]
@@ -82,12 +78,13 @@ config['servers_config']['recovery_cost'] = best_params["recovery_cost"]
 # Save the updated configuration file
 app_type = config["app_type"]
 noise = config['coordinator_config']["noise"]
+num_iterations = config["coordinator_config"]["num_iterations"]
 if noise == 1:
-    with open(f"{app_type}_noise_change_arrival_tps_config.json", 'w') as f:
+    with open(f"{app_type}_{num_iterations}_noise_config.json", 'w') as f:
         json.dump(config, f, indent=4)
 else:
     with open(f"{app_type}_no_noise_config.json", 'w') as f:
         json.dump(config, f, indent=4)
 
-with open("config.json", 'w') as f:
+with open("/Users/jingyiwu/Desktop/MARL/config.json", 'w') as f:
     json.dump(config, f, indent=4)
