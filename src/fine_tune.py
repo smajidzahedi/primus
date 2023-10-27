@@ -5,7 +5,7 @@ import subprocess
 def objective(trial):
     
     # Load the configuration file
-    with open('config.json', 'r') as f:
+    with open('../configs/config.json', 'r') as f:
         config = json.load(f)
     a = trial.suggest_categorical("a", [2, 4, 6, 8, 10])
     if config["policy_type"] == "ac_policy":  
@@ -34,7 +34,7 @@ def objective(trial):
     config['coordinator_config']['decay_factor'] = decay_factor
 
     # Save the updated configuration file
-    with open('config.json', 'w') as f:
+    with open('../configs/config.json', 'w') as f:
         json.dump(config, f, indent=4)
 
     
