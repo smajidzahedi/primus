@@ -1,3 +1,4 @@
+import sys
 from multiprocessing import Process, Queue
 import numpy as np
 import torch
@@ -20,38 +21,29 @@ set_seed(42)
 
 
 """
-An independent processor. Get information from each server, 
-and send rack state and frac_sprinters back to each of them. 
-Determining system trip or not.
+Coordinator: Communicates with workers and aggregates servers actions to determine if circuit breaker trips.
 """
 class Coordinator:
-    def __init__(self, coordinator_config,
-                 w2c_queues, c2w_queues,
-                 path,
-                 num_workers,
-                 num_servers, app_type, policy_type, threshold):
+    def __init__(self, coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers):
 
         # Sprinters parameters
         self.num_sprinters = 0  # Initialize num_sprinting
         self.frac_sprinters = 0
         self.avg_frac_sprinters = 0 # initial value for exponential moving average of num_sprinting
         self.sprinters_decay_factor = coordinator_config["sprinters_decay_factor"]  #   for fictitious play
+        self.frac_sprinters_list = []
 
         # Iteration parameters
         self.total_active_iterations = coordinator_config["total_active_iterations"]
         self.num_active_iterations = 0 # store total number of active rounds
         self.num_all_active_iterations = 0
+        self.num_recovery_iterations = 0
 
-        # Worker parameters
+        # Worker and server parameters
         self.num_workers = num_workers
         self.w2c_queues = w2c_queues
         self.c2w_queues = c2w_queues
-
-        # Server parameters
         self.num_servers = num_servers
-        self.app_type = app_type
-        self.policy_type = policy_type
-        self.threshold = threshold  # Given threshold value, when policy_type == Thr_Policy
 
         # Recovery parameters
         self.in_recovery = False    # flag for recovery
@@ -60,9 +52,6 @@ class Coordinator:
         self.max_frac = coordinator_config["max_frac"]  # higher bound of sprinters of system trip
         self.release_frac = coordinator_config["release_frac"]  #   prob. of servers that can leave recovery state
         self.rack_states = np.zeros(self.num_servers)
-
-        # Loging parameters
-        self.path = path
 
         # Privacy parameters
         self.c_epsilon = coordinator_config["c_epsilon"]
@@ -77,7 +66,7 @@ class Coordinator:
 
     #   Whether system trips or not
     def is_tripped(self):
-        prob = min(max((np.mean(self.frac_sprinters.tolist()) - self.min_frac) / (self.max_frac - self.min_frac), 0), 1)
+        prob = min(max((np.mean(self.frac_sprinters) - self.min_frac) / (self.max_frac - self.min_frac), 0), 1)
         return np.random.rand() < prob
 
     # Calculate number of sprinters in this round, determining whether system trip or not.
@@ -113,172 +102,151 @@ class Coordinator:
             self.num_all_active_iterations += 1
 
     # Main function for coordinator
-    def run_coordinator(self):
+    def run_coordinator(self, path):
         actions_array = np.zeros(self.num_servers)
-        frac_sprinters_list = []
+        server_ids = np.arange(0, self.num_servers)
+        workers_server_ids = np.array_split(server_ids, self.num_workers)
         iteration = 0
 
         while self.num_all_active_iterations < self.total_active_iterations:
+            print("Running iteration:", iteration)
             # Split the array into self.num_workers parts
-            reshaped_states = np.array_split(self.rack_states, self.num_workers)
+            workers_rack_states = np.array_split(self.rack_states, self.num_workers)
 
             # Now, iterate over the queues and reshaped states
-            for q, states in zip(self.c2w_queues, reshaped_states):
-                q.put((self.frac_sprinters, states, iteration))
+            for q, r_states in zip(self.c2w_queues, workers_rack_states):
+                q.put((self.frac_sprinters, r_states, iteration))
 
             # get information from workers
-            for q in self.w2c_queues:
-                info = q.get()
-                server_ids, actions = info
-                for j, index in enumerate(server_ids):
-                    actions_array[index] = actions[j]
+            for q, ids in zip(self.w2c_queues, workers_server_ids):
+                actions = q.get()
+                actions_array[ids] = actions
+
             self.aggregate_actions(actions_array)
-            frac_sprinters_list.append(self.frac_sprinters)
+            self.frac_sprinters_list.append(self.frac_sprinters)
             iteration += 1
-        self.num_recovery_rounds = num_recovery_iterations
-        self.num_active_iterations = num_active_iterations
-        print(f"total active round: {self.num_active_iterations}")
+
         # Send stop to all
         for q in self.c2w_queues:
             q.put('stop')
-        self.print_frac_sprinters(frac_sprinters_list)
-        self.print_num_recovery()
 
-    # Record fractional number of sprinters in each iterations
-    def print_frac_sprinters(self, frac_sprinters_list):
-        file_path = os.path.join(self.path, "frac_sprinters.txt")
+        self.num_recovery_iterations = iteration - self.num_active_iterations
+
+        # TODO call these from main!
+        self.print_frac_sprinters(path)
+        self.print_num_recovery(path)
+
+    # Record fractional number of sprinters in each iteration
+    def print_frac_sprinters(self, path):
+        file_path = os.path.join(path, "frac_sprinters.txt")
         with open(file_path, 'w+') as file:
-            for fs in frac_sprinters_list:
+            for fs in self.frac_sprinters_list:
                 #fs_num = round(np.mean(fs.tolist()), 2)
                 file.write(f"{fs.tolist()[0]}\n")
     
     # Record total number of recovery iterations 
-    def print_num_recovery(self):
-        file_path = os.path.join(self.path, f"{self.app_type}_num_recovery.txt")
-        with open(file_path, 'a+') as file:
-            if self.policy_type == "thr_policy":
-                file.write(f"{self.policy_type}_{str(self.threshold)}_{self.app_type}\t{self.num_recovery_rounds}\n")
-            else:
-                file.write(f"{self.policy_type}_{self.game_type}_{self.app_type}\t{self.num_recovery_rounds}\n")
+    def print_num_recovery(self, path):
+        file_path = os.path.join(path, "num_recovery_iterations.txt")
+        with open(file_path, 'w+') as file:
+            file.write(f"{self.num_recovery_iterations}\n")
+
 
 """
-Workers are also independent processors. Each worker manages several servers. 
-Workers get information from their servers, and send servers' information to coordinator, and vice versa.
+Workers: Manages several servers. 
 """
 class Worker:
-    def __init__(self, servers, w2c_queue, c2w_queue):
-        self.servers = servers
+    def __init__(self, servers_list, w2c_queue, c2w_queue):
+        self.num_servers = len(servers_list)
+        self.servers_list = servers_list
         self.w2c_queue = w2c_queue
         self.c2w_queue = c2w_queue
-        self.rewards = {}
 
-    def run_worker(self):
+    def run_worker(self, path):
         while True:
-            server_ids = []
-            actions = []
+            actions = np.ones(self.num_servers)
+            # Get info from coordinator
             info = self.c2w_queue.get()
             if info == 'stop':
-                for server in self.servers:
-                    server.print_reward(self.rewards[server.server_id])
-                    if isinstance(server.app, QueueApp):
-                        server.app.print_state(server.server_id, server.path)
+                for server in self.servers_list:
+                    server.print_rewards_and_app_states(path)
                 break
-            frac_sprinters, rack_state, iter = info
-            for i, server in enumerate(self.servers):
-                server.set_info_from_worker([frac_sprinters, rack_state[i], iter])
-                server_id, action, reward = server.run_server()
-                server_ids.append(server_id)
-                actions.append(action)
-                if server_id in self.rewards:
-                    self.rewards[server_id].append(reward)
-                else:
-                    self.rewards[server_id] = []
-                    self.rewards[server_id].append(reward)
-            self.w2c_queue.put((server_ids, actions))
+
+            frac_sprinters, rack_states, iteration = info
+            for i, server in enumerate(self.servers_list):
+                action, reward = server.run_server(rack_states[i], frac_sprinters, iteration)
+                actions[i] = action
+            # Send infor to coordinator
+            self.w2c_queue.put(actions)
 
 
-def main(config_file_name):
+def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     start_time = time.time()
     with open(config_file_name, 'r') as f:
         config = json.load(f)
     folder_name = config["folder_name"]
     coordinator_config = config["coordinator_config"]
     servers_config = config["servers_config"]
-    app_states = config["app_states"]
-    utilities = config["utilities"]
     num_workers = config["num_workers"]
     num_servers = config["num_servers"]
-    game_type = config["game_type"]
-    app_type = config["app_type"]
-    policy_type = config["policy_type"]
+    app_type = config["app_types"][app_type_id]
+    assert app_type_sub_id < len(config[app_type])
+    app_sub_type = config[app_type][app_type_sub_id]
+    policy_type = config["policy_types"][policy_id]
     threshold = config["threshold"]
-    c_epsilon = config["c_epsilon"]
-    c_delta = config["c_delta"]
-    path = f"{folder_name}/{num_servers}_server/{app_type}"
+    app_states = config["app_states"]
+    app_utilities = config["app_utilities"]
+
+    path = f"{folder_name}/{num_servers}_server/{policy_type}/{app_type}_{app_sub_type}"
     if not os.path.exists(path):
         os.makedirs(path)
+
     w2c_queues = [Queue() for _ in range(num_workers)]
     c2w_queues = [Queue() for _ in range(num_workers)]
-    servers = []
+
+    servers_list = []
     worker_processors = []
-    servers_per_worker = num_servers // num_workers
-    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, path, num_workers, num_servers, game_type, app_type, policy_type, threshold, c_epsilon, c_delta)
+
+    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers)
+
     for i in range(num_servers):
         app = None
-        if "markov_app" == app_type:
-            transition_matrix = config["transition_matrix"]
-            app = MarkovApp(app_states, transition_matrix, utilities, np.random.choice(app_states))
-        elif "uniform_app" == app_type:
-            app = UniformApp(app_states, utilities)
-        elif "normal_app" == app_type:
-            app = NormalApp(app_states, utilities)
-        elif "queue_app" == app_type:
-            arrival_tps = config["arrival_tps"]
-            sprinting_tps = config["sprinting_tps"]
-            nominal_tps = config["nominal_tps"]
+        if app_type == "markov":
+            transition_matrix = config["markov_app_transition_matrices"][app_sub_type]
+            app = applications.MarkovApp(app_states, transition_matrix, app_utilities, np.random.choice(app_states))
+        elif app_type == "uniform":
+            app = applications.UniformApp(app_states, app_utilities)
+        elif app_type == "queue":
+            arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
+            sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
+            nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
             max_queue_length = config["max_queue_length"]
-            app = QueueApp(utilities, arrival_tps, sprinting_tps, nominal_tps, max_queue_length)
-        if "ac_policy" == policy_type:
-            lr_actor = config["lr_actor"]
-            lr_critic = config["lr_critic"]
-            l1_in_actor = config["l1_in_actor"]
-            l1_in_critic = config["l1_in_critic"]
-            l1_out_l2_in_actor = config["l1_out_l2_in_actor"]
-            l1_out_l2_in_critic = config["l1_out_l2_in_critic"]
-            policy = ACPolicy(l1_in_actor, l1_in_critic, l1_out_l2_in_actor, l1_out_l2_in_critic, app_type)
-            # Create an Adam optimizer for the actor
-            actor_params = [policy.actor_layer1.weight, policy.actor_layer1.bias,
-                                policy.actor_layer2.weight, policy.actor_layer2.bias]
-            actor_optimizer = optim.Adam(actor_params, lr=lr_actor)
+            app = applications.QueueApp(arrival_tps, sprinting_tps, nominal_tps, max_queue_length)
+        else:
+            sys.exit("wrong app type!")
 
-            # Create an Adam optimizer for the critic
-            critic_params = [policy.critic_layer1.weight, policy.critic_layer1.bias,
-                            policy.critic_layer2.weight, policy.critic_layer2.bias]
+        if policy_type == "ac_policy":
+            a_lr = config["a_lr"]
+            c_lr = config["c_lr"]
+            a_h1_size = config["a_h1_size"]
+            c_h1_size = config["c_h1_size"]
+            policy = policies.ACPolicy(2, 4, a_h1_size, c_h1_size, a_lr, c_lr)
+            server = servers.ACServer(i, policy, app, servers_config)
+        elif policy_type == "thr_policy":
+            policy = policies.ThrPolicy(threshold)
+            server = servers.ThrServer(i, policy, app, servers_config)
+        else:
+            sys.exit("Wrong policy type!")
 
-            critic_optimizer = optim.Adam(critic_params, lr=lr_critic)
-            optimizer = [actor_optimizer, critic_optimizer]
-            server = AC_server(i, policy, optimizer, app, path, servers_config, num_servers, servers_per_worker, game_type)
-        elif "thr_policy" == policy_type:
-            policy = ThrPolicy(threshold)
-            server = Thr_server(i, policy, app, path, servers_config, num_servers, servers_per_worker, game_type)
-        elif "q_learning" == policy_type:
-            lr_q = config["lr_q"]
-            l1_in_q = config["l1_in_q"]
-            l1_out_l2_in_q = config["l1_out_l2_in_q"]
-            dqn = QNetwork(l1_in_q, l1_out_l2_in_q)
-            target_dqn = QNetwork(l1_in_q, l1_out_l2_in_q)
-            optimizer = optim.Adam(dqn.parameters(), lr_q)
-            server = Q_server(i, dqn, target_dqn, optimizer, app, path, servers_config, num_servers, servers_per_worker, game_type)
-        servers.append(server)
+        servers_list.append(server)
     
-    split_servers = np.array_split(servers, num_workers)
-    for i, s in enumerate(split_servers):
-        worker = Worker(s, w2c_queues[i], c2w_queues[i])
-        worker_processor = Process(target=worker.run_worker)
+    ids_list = np.array_split(np.arange(0, num_servers), num_workers)
+    for i in range(0, num_workers):
+        worker = Worker(servers_list[ids_list[i][0]:ids_list[i][-1] + 1], w2c_queues[i], c2w_queues[i])
+        worker_processor = Process(target=worker.run_worker, args=path)
         worker_processors.append(worker_processor)
         worker_processor.start()
 
-    coordinator_processor = Process(target=coordinator.run_coordinator)
+    coordinator_processor = Process(target=coordinator.run_coordinator, args=path)
     coordinator_processor.start()
 
     for worker_processor in worker_processors:
@@ -293,6 +261,10 @@ def main(config_file_name):
 
 if __name__ == "__main__":
     config_file = "/Users/jingyiwu/Desktop/MARL/config.json"
-    main(config_file)
+    app_type_sub_ids = [1, 1, 1]
+    for policy_id in range(0, 2):
+        for app_type_id in range(0, 3):
+            for app_type_sub_id in range(0, app_type_sub_ids[app_type_id]):
+                main(config_file, app_type_id, app_type_sub_id, policy_id)
 
     

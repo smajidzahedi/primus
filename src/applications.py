@@ -23,7 +23,7 @@ class App:
         self.app_state_history.append(self.current_state)
 
     def print_state(self, server_id, path):
-        file_path = os.path.join(path, f"server_{server_id}_app_state.txt")
+        file_path = os.path.join(path, f"server_{server_id}_app_states.txt")
         with open(file_path, 'w') as file:
             for h in self.app_state_history:
                 file.write(f"{str(h)}\n")
@@ -80,17 +80,14 @@ Queue application uses Poisson distribution to model events that occur randomly 
 
 
 class QueueApp(App):
-    def __init__(self, utilities, arrival_tps, sprinting_tps, nominal_tps,
-                 max_queue_length=1000, decay_factor=0.99):
+    def __init__(self, arrival_tps, sprinting_tps, nominal_tps, max_queue_length=1000):
         super().__init__()
-        self.utilities = utilities
-        self.arrival_tps = arrival_tps
         self.current_state = 0
-        self.current_state_avg = None
+        self.current_state_avg = 0
+        self.arrival_tps = arrival_tps
         self.sprinting_tps = sprinting_tps
         self.nominal_tps = nominal_tps
         self.max_queue_length = max_queue_length
-        self.decay_factor = decay_factor
 
     #   current state for queue app is the current queue length in range 0 to 1
     def get_current_state(self):
@@ -108,14 +105,9 @@ class QueueApp(App):
         return self.get_cooling_utility()
 
     def update_state(self, action):
+        super().update_state(action)
         arrived_tasks = np.random.poisson(self.arrival_tps)
         departed_tasks = min(self.current_state, np.random.poisson(self.nominal_tps))
         if action == 0:
             departed_tasks = min(self.current_state, np.random.poisson(self.sprinting_tps))
         self.current_state = self.current_state + arrived_tasks - departed_tasks
-        if self.current_state_avg is None:  # If this is the first state
-            self.current_state_avg = self.current_state
-        else:
-            self.current_state_avg = self.decay_factor * self.current_state_avg + (
-                        1 - self.decay_factor) * self.current_state
-        self.app_state_history.append(self.current_state_avg)

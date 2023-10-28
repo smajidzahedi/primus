@@ -17,19 +17,27 @@ Actor network and Critic network, both of them have two fully connected layers.
 
 
 class ACPolicy(Policy):
-    def __init__(self, a_input_size, c_input_size, a_h1_size, c_h1_size):
+    def __init__(self, a_input_size, c_input_size, a_h1_size, c_h1_size, a_lr, c_lr):
         super().__init__()
         # Initialize Actor network
-        self.a_input_size = a_input_size
+        self.a_input_size = 2
         a_l1_size = a_input_size ** 2 + 2 * a_input_size
         self.actor_layer1 = nn.Linear(a_l1_size, a_h1_size)
         self.actor_layer2 = nn.Linear(a_h1_size, 2)
+        self.a_lr = a_lr
+        actor_params = [self.actor_layer1.weight, self.actor_layer1.bias,
+                        self.actor_layer2.weight, self.actor_layer2.bias]
+        self.actor_optimizer = optim.Adam(actor_params, lr=self.a_lr)
 
         # Initialize Critic network
-        self.c_input_size = c_input_size
+        self.c_input_size = 4
+        self.c_lr = c_lr
         c_l1_size = c_input_size ** 2 + 4 * c_input_size
         self.critic_layer1 = nn.Linear(c_l1_size, c_h1_size)
         self.critic_layer2 = nn.Linear(c_h1_size, 1)
+        critic_params = [self.critic_layer1.weight, self.critic_layer1.bias,
+                         self.critic_layer2.weight, self.critic_layer2.bias]
+        self.critic_optimizer = optim.Adam(critic_params, lr=self.c_lr)
 
     def forward_actor(self, x):
         x2 = x ** 2

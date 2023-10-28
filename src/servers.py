@@ -4,24 +4,25 @@ from torch.distributions import Categorical
 import torch
 import numpy as np
 
-import applications
-import policies
-
 class Server:
-    def __init__(self, server_id, policy, app, path, server_config):
+    def __init__(self, server_id, policy, app, server_config):
         self.server_id = server_id
+
         self.rack_state = 0         # initial state: Normal
         self.server_state = 0       # initial state: Active
-        self.policy = policy        # learning policy
-        self.app = app
-        self.path = path            # location of storing files
-        self.recovery_cost = server_config["recovery_cost"]
-        self.cooling_prob = server_config["cooling_prob"]   # prob. of staying cooling state
-        self.reward = 0
-        self.reward_history = []
-        self.action = 1
-        self.discount_factor = server_config["discount_factor"]
+        self.action = 1             # initial action: Not sprint
+        self.reward = 0             # initial reward: Zero
+
         self.frac_sprinters = torch.zeros(1)
+
+        self.policy = policy
+        self.app = app
+
+        self.recovery_cost = server_config["recovery_cost"]
+        self.cooling_prob = server_config["cooling_prob"]
+        self.discount_factor = server_config["discount_factor"]
+
+        self.reward_history = []
 
     def get_action_reward(self, action):
         if self.rack_state == 1:
@@ -62,20 +63,19 @@ class Server:
         return self.action, self.reward
 
     # write reward into files
-    def print_reward(self):
-        file_path = os.path.join(self.path, f"server_{self.server_id}_reward.txt")
+    def print_rewards_and_app_states(self, path):
+        file_path = os.path.join(path, f"server_{self.server_id}_rewards.txt")
         with open(file_path, 'w+') as file:
             for r in self.reward_history:
                 file.write(f"{str(r)}\n")
+        self.app.print_state(self.server_id, path)
 
 
 
 # Server with Actor-Critic policy
 class ACServer(Server):
-    def __init__(self, server_id, policy, app, path, server_config, optimizer):
-        super().__init__(server_id, policy, app, path, server_config)
-        self.actor_optimizer = optimizer[0]
-        self.critic_optimizer = optimizer[1]
+    def __init__(self, server_id, policy, app, server_config):
+        super().__init__(server_id, policy, app, server_config)
         self.state_value = torch.tensor([0.0])
         self.threshold = torch.tensor([0.0])
         self.action_prob_dist = Categorical(torch.tensor([0.0, 1.0]))
@@ -106,14 +106,14 @@ class ACServer(Server):
 
         # Update the actor
         if self.update_actor:
-            self.actor_optimizer.zero_grad()
+            self.policy.actor_optimizer.zero_grad()
             actor_loss.backward()
-            self.actor_optimizer.step()
+            self.policy.actor_optimizer.step()
 
         # Update the critic
-        self.critic_optimizer.zero_grad()
+        self.policy.critic_optimizer.zero_grad()
         critic_loss.backward()
-        self.critic_optimizer.step()
+        self.policy.critic_optimizer.step()
 
     # get threshold value and state value from AC_Policy network, choose sprint or not and get immediate reward
     def take_action(self):
@@ -132,7 +132,7 @@ class ACServer(Server):
 #  It is a fixed policy, so it doesn't need update policy
 class ThrServer(Server):
     def __init__(self, server_id, policy, app, path, server_config):
-        super().__init__(server_id, policy, app, path, server_config)
+        super().__init__(server_id, policy, app, server_config)
 
     def update_policy(self):
         return
