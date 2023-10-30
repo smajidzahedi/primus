@@ -20,7 +20,6 @@ class ACPolicy(Policy):
     def __init__(self, a_input_size, c_input_size, a_h1_size, c_h1_size, a_lr, c_lr):
         super().__init__()
         # Initialize Actor network
-        self.a_input_size = 2
         a_l1_size = a_input_size ** 2 + 2 * a_input_size
         self.actor_layer1 = nn.Linear(a_l1_size, a_h1_size)
         self.actor_layer2 = nn.Linear(a_h1_size, 2)
@@ -30,7 +29,6 @@ class ACPolicy(Policy):
         self.actor_optimizer = optim.Adam(actor_params, lr=self.a_lr)
 
         # Initialize Critic network
-        self.c_input_size = 4
         self.c_lr = c_lr
         c_l1_size = c_input_size ** 2 + 4 * c_input_size
         self.critic_layer1 = nn.Linear(c_l1_size, c_h1_size)
@@ -43,9 +41,10 @@ class ACPolicy(Policy):
         x2 = x ** 2
         xx = torch.outer(x, x).flatten()
         x = torch.cat((x2, xx, x))
-        x = torch.tanh(self.actor_layer1(x))
+        x = torch.relu(self.actor_layer1(x))
+        x_max = torch.max(x)
+        x = x - x_max # avoid NaN value
         softmax = torch.softmax(self.actor_layer2(x), dim=-1)
-        # action_probs_log = torch.log_softmax(self.actor_layer2(x), dim=-1)  # change here
         return softmax
 
     def forward_critic(self, x):
@@ -60,9 +59,6 @@ class ACPolicy(Policy):
 
     def forward(self, x):
         x_actor, x_critic = x[0], x[1]
-        # TODO get rid of these after you test them
-        assert len(x_actor) == self.a_input_size
-        assert len(x_critic) == self.c_input_size
         action_prob = self.forward_actor(x_actor)
         state_value = self.forward_critic(x_critic)
         return action_prob, state_value

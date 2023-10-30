@@ -52,7 +52,6 @@ class MarkovApp(App):
         probabilities = self.transition_matrix[index]
         self.current_state = np.random.choice(self.app_states, p=probabilities)
 
-
 """
 State transition follows Uniform distribution
 """

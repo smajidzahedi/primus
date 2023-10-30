@@ -2,11 +2,10 @@ import sys
 from multiprocessing import Process, Queue
 import numpy as np
 import torch
-from torch import nn, optim
 import time
 import os
-from tqdm import tqdm
 import json
+import argparse
 
 import applications
 import policies
@@ -109,7 +108,6 @@ class Coordinator:
         iteration = 0
 
         while self.num_all_active_iterations < self.total_active_iterations:
-            print("Running iteration:", iteration)
             # Split the array into self.num_workers parts
             workers_rack_states = np.array_split(self.rack_states, self.num_workers)
 
@@ -132,7 +130,6 @@ class Coordinator:
 
         self.num_recovery_iterations = iteration - self.num_active_iterations
 
-        # TODO call these from main!
         self.print_frac_sprinters(path)
         self.print_num_recovery(path)
 
@@ -142,7 +139,7 @@ class Coordinator:
         with open(file_path, 'w+') as file:
             for fs in self.frac_sprinters_list:
                 #fs_num = round(np.mean(fs.tolist()), 2)
-                file.write(f"{fs.tolist()[0]}\n")
+                file.write(f"{fs}\n")
     
     # Record total number of recovery iterations 
     def print_num_recovery(self, path):
@@ -189,8 +186,8 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     num_workers = config["num_workers"]
     num_servers = config["num_servers"]
     app_type = config["app_types"][app_type_id]
-    assert app_type_sub_id < len(config[app_type])
-    app_sub_type = config[app_type][app_type_sub_id]
+    assert app_type_sub_id < len(config["app_sub_types"][app_type])
+    app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
     policy_type = config["policy_types"][policy_id]
     threshold = config["threshold"]
     app_states = config["app_states"]
@@ -242,11 +239,11 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     ids_list = np.array_split(np.arange(0, num_servers), num_workers)
     for i in range(0, num_workers):
         worker = Worker(servers_list[ids_list[i][0]:ids_list[i][-1] + 1], w2c_queues[i], c2w_queues[i])
-        worker_processor = Process(target=worker.run_worker, args=path)
+        worker_processor = Process(target=worker.run_worker, args=(path,))
         worker_processors.append(worker_processor)
         worker_processor.start()
 
-    coordinator_processor = Process(target=coordinator.run_coordinator, args=path)
+    coordinator_processor = Process(target=coordinator.run_coordinator, args=(path,))
     coordinator_processor.start()
 
     for worker_processor in worker_processors:
@@ -260,11 +257,12 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     
 
 if __name__ == "__main__":
-    config_file = "/Users/jingyiwu/Desktop/MARL/config.json"
-    app_type_sub_ids = [1, 1, 1]
-    for policy_id in range(0, 2):
-        for app_type_id in range(0, 3):
-            for app_type_sub_id in range(0, app_type_sub_ids[app_type_id]):
-                main(config_file, app_type_id, app_type_sub_id, policy_id)
+    """parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")
+    parser.add_argument("app_type_id", type=int, help="App type ID.")
+    parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
+    parser.add_argument("policy_id", type=int, help="Policy ID.")
+    args = parser.parse_args()"""
 
+    config_file = "/Users/jingyiwu/Desktop/MARL/configs/config.json"
     
+    main(config_file, 2, 0, 1)

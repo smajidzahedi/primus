@@ -39,7 +39,7 @@ class Server:
     def update_state(self, rack_state, frac_sprinters):
         self.app.update_state(self.action)
         self.rack_state = rack_state
-        self.frac_sprinters = torch.tensor(frac_sprinters)
+        self.frac_sprinters = torch.tensor([frac_sprinters], dtype=torch.float32)
 
         if self.server_state == 1:
             assert self.action == 1
@@ -76,9 +76,8 @@ class Server:
 class ACServer(Server):
     def __init__(self, server_id, policy, app, server_config):
         super().__init__(server_id, policy, app, server_config)
-        self.state_value = torch.tensor([0.0])
-        self.threshold = torch.tensor([0.0])
-        self.action_prob_dist = Categorical(torch.tensor([0.0, 1.0]))
+        self.state_value = torch.tensor([0.0], requires_grad=True)
+        self.action_probs = torch.tensor([0.0, 1.0], requires_grad=True)
         self.a_next_state_tensor = None
         self.c_next_state_tensor = None
         self.update_actor = True
@@ -86,9 +85,9 @@ class ACServer(Server):
     def update_state(self, rack_state, frac_sprinters):
         super().update_state(rack_state, frac_sprinters)
 
-        rack_state_tensor = torch.tensor([self.rack_state])
-        server_state_tensor = torch.tensor([self.server_state])
-        app_state_tensor = torch.tensor([self.app.get_current_state()])
+        rack_state_tensor = torch.tensor([self.rack_state], dtype=torch.float32)
+        server_state_tensor = torch.tensor([self.server_state], dtype=torch.float32)
+        app_state_tensor = torch.tensor([self.app.get_current_state()], dtype=torch.float32)
 
         self.a_next_state_tensor = torch.cat((app_state_tensor, self.frac_sprinters))
         self.c_next_state_tensor = torch.cat((rack_state_tensor, server_state_tensor,
@@ -99,7 +98,8 @@ class ACServer(Server):
         next_state_value = self.policy.forward_critic(self.c_next_state_tensor)
         advantage = self.reward + self.discount_factor * next_state_value - self.state_value
 
-        actor_loss = -self.action_prob_dist.log_prob(self.action) * advantage.detach()
+        self.action_prob_log = torch.log(self.action_probs)[self.action]
+        actor_loss = -self.action_prob_log * advantage.detach()
 
         loss_fn = nn.MSELoss()
         critic_loss = loss_fn(self.state_value, self.reward + self.discount_factor * next_state_value)
@@ -118,9 +118,8 @@ class ACServer(Server):
     # get threshold value and state value from AC_Policy network, choose sprint or not and get immediate reward
     def take_action(self):
         input_tensor = [self.a_next_state_tensor, self.c_next_state_tensor]
-        action_probs, self.state_value = self.policy(input_tensor)
-        self.action_prob_dist = Categorical(action_probs)
-        action = self.action_prob_dist.sample().item()
+        self.action_probs, self.state_value = self.policy(input_tensor)
+        action = np.random.choice(np.array([0, 1]), p=self.action_probs.detach().numpy())
         self.action, self.reward = self.get_action_reward(action)
         if self.rack_state == 0 and self.server_state == 0:
             self.update_actor = True
@@ -131,7 +130,7 @@ class ACServer(Server):
 #  Server with threshold policy.
 #  It is a fixed policy, so it doesn't need update policy
 class ThrServer(Server):
-    def __init__(self, server_id, policy, app, path, server_config):
+    def __init__(self, server_id, policy, app, server_config):
         super().__init__(server_id, policy, app, server_config)
 
     def update_policy(self):
