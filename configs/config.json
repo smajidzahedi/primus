@@ -60,12 +60,12 @@
         "q2": 15,
         "q3": 15
     },
-    "max_queue_length": 5000,
+    "max_queue_length": 2000,
     "policy_types": ["ac_policy", "thr_policy"],
-    "a_h1_size": 256,
-    "c_h1_size": 256,
+    "a_h1_size": 128,
+    "c_h1_size": 128,
     "a_lr": 0.0001,
-    "c_lr": 0.00030000000000000003,
+    "c_lr": 0.0003,
     "folder_name": "/Users/jingyiwu/Desktop/Project/data",
     "threshold": 0.003,
     "num_workers": 10,
@@ -73,12 +73,12 @@
     "servers_config": {
         "recovery_cost": 20,
         "cooling_prob": 0.5,
-        "discount_factor": 0.99
+        "discount_factor": 0.999
     },
     "coordinator_config": {
         "total_active_iterations": 40000,
         "recovery_prob": 0.88,
-        "sprinters_decay_factor": 0.9994,
+        "sprinters_decay_factor": 0.997,
         "min_frac": 0.25,
         "max_frac": 0.75,
         "release_frac": 0.2,

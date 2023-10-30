@@ -42,9 +42,9 @@ class ACPolicy(Policy):
         xx = torch.outer(x, x).flatten()
         x = torch.cat((x2, xx, x))
         x = torch.relu(self.actor_layer1(x))
-        x_max = torch.max(x)
-        x = x - x_max # avoid NaN value
-        softmax = torch.softmax(self.actor_layer2(x), dim=-1)
+        # x_max = torch.max(x)
+        # x = x - x_max
+        softmax = torch.log_softmax(self.actor_layer2(x), dim=-1)
         return softmax
 
     def forward_critic(self, x):

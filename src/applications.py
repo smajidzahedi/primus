@@ -10,11 +10,11 @@ class App:
     def get_sprinting_utility(self):
         raise NotImplementedError("This method should be overridden.")
 
-    def get_cooling_utility(self):
-        return 0
+    def get_normal_utility(self):
+        pass
 
-    def get_recovery_utility(self):
-        return 0
+    def get_gained_utility(self):
+        return self.get_sprinting_utility() - self.get_normal_utility()
 
     def get_current_state(self):
         return float(self.current_state)
@@ -46,6 +46,9 @@ class MarkovApp(App):
         index = self.app_states.index(self.current_state)
         return self.utilities[index]
 
+    def get_normal_utility(self):
+        return 0
+
     def update_state(self, action):
         super().update_state(action)
         index = self.app_states.index(self.current_state)
@@ -67,6 +70,9 @@ class UniformApp(App):
     def get_sprinting_utility(self):
         index = self.app_states.index(self.current_state)
         return self.utilities[index]
+
+    def get_normal_utility(self):
+        return 0
 
     def update_state(self, action):
         super().update_state(action)
@@ -96,12 +102,9 @@ class QueueApp(App):
         return -min(self.current_state + self.arrival_tps - min(self.current_state, self.sprinting_tps),
                     self.max_queue_length) / self.max_queue_length
 
-    def get_cooling_utility(self):
+    def get_normal_utility(self):
         return -min(self.current_state + self.arrival_tps - min(self.current_state, self.nominal_tps),
                     self.max_queue_length) / self.max_queue_length
-
-    def get_recovery_utility(self):
-        return self.get_cooling_utility()
 
     def update_state(self, action):
         super().update_state(action)
