@@ -29,7 +29,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     plt.savefig(os.path.join(path, "frac_sprinter.png"))
     plt.close()
 
-    rewards_from_servers = np.empty([num_servers, total_iter])
+    rewards_from_servers = np.zeros([num_servers, total_iter])
     for i in range(num_servers):
         reward_file_path = os.path.join(path, f"server_{i}_rewards.txt")
         rewards = np.loadtxt(reward_file_path)
@@ -47,13 +47,13 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
 
     #   calculate average reward over rounds for different policy 
     if policy_id == 0:
-        avg_reward = mean_rewards[len(mean_rewards)-1000:].mean()
+        average_reward = mean_rewards[len(mean_rewards) - 1000:].mean()
     else:
-        avg_reward = mean_rewards.mean()
+        average_reward = mean_rewards.mean()
 
     file_path = os.path.join(path, "different_policy_avg_rewards.txt")
     with open(file_path, 'w+') as file:
-        file.write(f"{avg_reward}\n")
+        file.write(f"{average_reward}\n")
 
     if app_type_id == 2:
         # Iterate over all 10 servers
@@ -78,7 +78,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
         plt.savefig(os.path.join(path, f"queue_length.png"))
         plt.close()
         
-    return avg_reward
+    return average_reward
 
 if __name__ == "__main__":
     """parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")

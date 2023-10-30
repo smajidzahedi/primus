@@ -26,11 +26,11 @@ class Coordinator:
     def __init__(self, coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers):
 
         # Sprinters parameters
-        self.num_sprinters = 0  # Initialize num_sprinting
-        self.frac_sprinters = 0
+        self.frac_sprinters = 0  # Initialize num_sprinting
+        self.avg_frac_sprinters_corrected = 0
         self.avg_frac_sprinters = 0 # initial value for exponential moving average of num_sprinting
         self.sprinters_decay_factor = coordinator_config["sprinters_decay_factor"]  #   for fictitious play
-        self.frac_sprinters_list = []
+        self.avg_frac_sprinters_list = []
 
         # Iteration parameters
         self.total_active_iterations = coordinator_config["total_active_iterations"]
@@ -65,17 +65,17 @@ class Coordinator:
 
     #   Whether system trips or not
     def is_tripped(self):
-        prob = min(max((np.mean(self.frac_sprinters) - self.min_frac) / (self.max_frac - self.min_frac), 0), 1)
+        prob = min(max((self.frac_sprinters - self.min_frac) / (self.max_frac - self.min_frac), 0), 1)
         return np.random.rand() < prob
 
     # Calculate number of sprinters in this round, determining whether system trip or not.
     # Calculate the fractional number of sprinters by Bias-Corrected Exponential Weighted Moving Average
     # Add noise on the fraction number of sprinters in this round (# of sprinters / total # of servers)
     def aggregate_actions(self, actions):
-        self.num_sprinters = self.num_servers - actions.sum()
+        self.frac_sprinters = (self.num_servers - actions.sum()) / self.num_servers
 
         if self.in_recovery:
-            assert self.num_sprinters == 0
+            assert self.frac_sprinters == 0
             if np.random.rand() > self.recovery_prob:   #   whether servers are allowed start to leave recovery state
                 self.in_recovery = False
         else:
@@ -83,12 +83,12 @@ class Coordinator:
             self.in_recovery = self.is_tripped()
 
             self.avg_frac_sprinters *= self.sprinters_decay_factor
-            self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * (self.num_sprinters / self.num_servers)
+            self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * self.frac_sprinters
 
             if self.add_noise == 1:
                 self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * np.random.normal(loc=0, scale=self.sigma)
 
-            self.frac_sprinters = self.avg_frac_sprinters / (1 - self.sprinters_decay_factor ** self.num_active_iterations)
+            self.avg_frac_sprinters_corrected = self.avg_frac_sprinters / (1 - self.sprinters_decay_factor ** self.num_active_iterations)
 
         # release servers from recovery state randomly
         if self.in_recovery:
@@ -113,7 +113,7 @@ class Coordinator:
 
             # Now, iterate over the queues and reshaped states
             for q, r_states in zip(self.c2w_queues, workers_rack_states):
-                q.put((self.frac_sprinters, r_states, iteration))
+                q.put((self.avg_frac_sprinters_corrected, r_states, iteration))
 
             # get information from workers
             for q, ids in zip(self.w2c_queues, workers_server_ids):
@@ -121,7 +121,7 @@ class Coordinator:
                 actions_array[ids] = actions
 
             self.aggregate_actions(actions_array)
-            self.frac_sprinters_list.append(self.frac_sprinters)
+            self.avg_frac_sprinters_list.append(self.avg_frac_sprinters_corrected)
             iteration += 1
 
         # Send stop to all
@@ -137,7 +137,7 @@ class Coordinator:
     def print_frac_sprinters(self, path):
         file_path = os.path.join(path, "frac_sprinters.txt")
         with open(file_path, 'w+') as file:
-            for fs in self.frac_sprinters_list:
+            for fs in self.avg_frac_sprinters_list:
                 #fs_num = round(np.mean(fs.tolist()), 2)
                 file.write(f"{fs}\n")
     
