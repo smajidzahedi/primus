@@ -5,6 +5,11 @@
         "markov": ["m1", "m2", "m3"],
         "queue": ["q1", "q2", "q3"]
     },
+    "normalization_factor": {
+        "uniform": {"u1": 0.1},
+        "markov": {"m1": 0.1, "m2": 0.1, "m3": 0.1},
+        "queue": {"q1": 0.1, "q2": 0.1, "q3": 0.1}
+    },
     "app_states": ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"],
     "app_utilities": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
     "markov_app_transition_matrices": {
@@ -62,21 +67,21 @@
     },
     "max_queue_length": 2000,
     "policy_types": ["ac_policy", "thr_policy"],
-    "a_h1_size": 128,
-    "c_h1_size": 128,
-    "a_lr": 0.0001,
-    "c_lr": 0.0003,
+    "a_h1_size": 256,
+    "c_h1_size": 256,
+    "a_lr": 0.0003,
+    "c_lr": 0.00045,
     "folder_name": "/Users/jingyiwu/Desktop/Project/data",
-    "threshold": 0.003,
+    "threshold": 0.6,
     "num_workers": 10,
     "num_servers": 100,
     "servers_config": {
-        "recovery_cost": 20,
+        "recovery_cost": 10,
         "cooling_prob": 0.5,
-        "discount_factor": 0.999
+        "discount_factor": 0.9999
     },
     "coordinator_config": {
-        "total_active_iterations": 40000,
+        "total_active_iterations": 15000,
         "recovery_prob": 0.88,
         "sprinters_decay_factor": 0.997,
         "min_frac": 0.25,

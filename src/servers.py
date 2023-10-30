@@ -71,13 +71,14 @@ class Server:
 
 # Server with Actor-Critic policy
 class ACServer(Server):
-    def __init__(self, server_id, policy, app, server_config):
+    def __init__(self, server_id, policy, app, server_config, normalization_factor):
         super().__init__(server_id, policy, app, server_config)
         self.state_value = torch.tensor([0.0], requires_grad=True)
         self.action_probs = torch.tensor([0.0, 1.0], requires_grad=True)
         self.a_next_state_tensor = None
         self.c_next_state_tensor = None
         self.update_actor = True
+        self.normalization_factor = normalization_factor
 
     def update_state(self, rack_state, frac_sprinters):
         super().update_state(rack_state, frac_sprinters)
@@ -88,9 +89,9 @@ class ACServer(Server):
         utility = self.app.get_gained_utility()
         app_utility_tensor = torch.tensor([utility], dtype=torch.float32)
 
-        self.a_next_state_tensor = 0.1 * torch.cat((app_utility_tensor, self.frac_sprinters))
-        self.c_next_state_tensor = 0.1 * torch.cat((rack_state_tensor, server_state_tensor,
-                                                    app_utility_tensor, self.frac_sprinters))
+        self.a_next_state_tensor = self.normalization_factor * torch.cat((app_utility_tensor, self.frac_sprinters))
+        self.c_next_state_tensor = self.normalization_factor * torch.cat((rack_state_tensor, server_state_tensor,
+                                                                          app_utility_tensor, self.frac_sprinters))
 
     # Update Actor and Critic networks' parameters
     def update_policy(self):

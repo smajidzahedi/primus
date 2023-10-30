@@ -188,6 +188,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     app_type = config["app_types"][app_type_id]
     assert app_type_sub_id < len(config["app_sub_types"][app_type])
     app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
+    normalization_factor = config["normalization_factor"][app_type][app_sub_type]
     policy_type = config["policy_types"][policy_id]
     threshold = config["threshold"]
     app_states = config["app_states"]
@@ -227,7 +228,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
             a_h1_size = config["a_h1_size"]
             c_h1_size = config["c_h1_size"]
             policy = policies.ACPolicy(2, 4, a_h1_size, c_h1_size, a_lr, c_lr)
-            server = servers.ACServer(i, policy, app, servers_config)
+            server = servers.ACServer(i, policy, app, servers_config, normalization_factor)
         elif policy_type == "thr_policy":
             policy = policies.ThrPolicy(threshold)
             server = servers.ThrServer(i, policy, app, servers_config)
