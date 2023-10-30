@@ -72,7 +72,6 @@
     "a_lr": 0.0003,
     "c_lr": 0.00045,
     "folder_name": "/Users/jingyiwu/Desktop/Project/data",
-    "threshold": 0.6,
     "num_workers": 10,
     "num_servers": 100,
     "servers_config": {

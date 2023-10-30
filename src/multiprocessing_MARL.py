@@ -176,7 +176,7 @@ class Worker:
             self.w2c_queue.put(actions)
 
 
-def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
+def main(config_file_name, app_type_id, app_type_sub_id, policy_id, threshold):
     start_time = time.time()
     with open(config_file_name, 'r') as f:
         config = json.load(f)
@@ -190,7 +190,6 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
     normalization_factor = config["normalization_factor"][app_type][app_sub_type]
     policy_type = config["policy_types"][policy_id]
-    threshold = config["threshold"]
     app_states = config["app_states"]
     app_utilities = config["app_utilities"]
 
@@ -266,4 +265,4 @@ if __name__ == "__main__":
 
     config_file = "/Users/jingyiwu/Desktop/MARL/configs/config.json"
     
-    main(config_file, 2, 0, 1)
+    main(config_file, 2, 0, 1, 0.6)
