@@ -74,7 +74,7 @@ class ACServer(Server):
     def __init__(self, server_id, policy, app, server_config):
         super().__init__(server_id, policy, app, server_config)
         self.state_value = torch.tensor([0.0], requires_grad=True)
-        self.action_log_probs = torch.tensor([0.0, 0.0], requires_grad=True)
+        self.action_probs = torch.tensor([0.0, 1.0], requires_grad=True)
         self.a_next_state_tensor = None
         self.c_next_state_tensor = None
         self.update_actor = True
@@ -88,16 +88,17 @@ class ACServer(Server):
         utility = self.app.get_gained_utility()
         app_utility_tensor = torch.tensor([utility], dtype=torch.float32)
 
-        self.a_next_state_tensor = torch.cat((app_utility_tensor, self.frac_sprinters))
-        self.c_next_state_tensor = torch.cat((rack_state_tensor, server_state_tensor,
-                                              app_utility_tensor, self.frac_sprinters))
+        self.a_next_state_tensor = 0.1 * torch.cat((app_utility_tensor, self.frac_sprinters))
+        self.c_next_state_tensor = 0.1 * torch.cat((rack_state_tensor, server_state_tensor,
+                                                    app_utility_tensor, self.frac_sprinters))
 
     # Update Actor and Critic networks' parameters
     def update_policy(self):
         next_state_value = self.policy.forward_critic(self.c_next_state_tensor)
         advantage = self.reward + self.discount_factor * next_state_value - self.state_value
 
-        actor_loss = -self.action_log_probs[self.action] * advantage.detach()
+        action_log_prob = torch.log(self.action_probs)[self.action]
+        actor_loss = -action_log_prob * advantage.detach()
 
         loss_fn = nn.MSELoss()
         critic_loss = loss_fn(self.state_value, self.reward + self.discount_factor * next_state_value)
@@ -116,9 +117,8 @@ class ACServer(Server):
     # get threshold value and state value from AC_Policy network, choose sprint or not and get immediate reward
     def take_action(self):
         input_tensor = [self.a_next_state_tensor, self.c_next_state_tensor]
-        self.action_log_probs, self.state_value = self.policy(input_tensor)
-        action_probs = torch.exp(self.action_log_probs)
-        action = np.random.choice(np.array([0, 1]), p=action_probs.detach().numpy())
+        self.action_probs, self.state_value = self.policy(input_tensor)
+        action = np.random.choice(np.array([0, 1]), p=self.action_probs.detach().numpy())
         self.action, self.reward = self.get_action_reward(action)
         if self.rack_state == 0 and self.server_state == 0:
             self.update_actor = True
