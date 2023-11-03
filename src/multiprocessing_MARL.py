@@ -176,7 +176,7 @@ class Worker:
             self.w2c_queue.put(actions)
 
 
-def main(config_file_name, app_type_id, app_type_sub_id, policy_id, threshold):
+def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in):
     start_time = time.time()
     with open(config_file_name, 'r') as f:
         config = json.load(f)
@@ -186,9 +186,8 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id, threshold):
     num_workers = config["num_workers"]
     num_servers = config["num_servers"]
     app_type = config["app_types"][app_type_id]
-    assert app_type_sub_id < len(config["app_sub_types"][app_type])
-    app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
-    normalization_factor = config["normalization_factor"][app_type][app_sub_type]
+    assert app_sub_type_id < len(config["app_sub_types"][app_type])
+    app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
     policy_type = config["policy_types"][policy_id]
     app_states = config["app_states"]
     app_utilities = config["app_utilities"]
@@ -203,7 +202,8 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id, threshold):
     servers_list = []
     worker_processors = []
 
-    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers)
+    sprinters_decay_factor = config["sprinters_decay_factor"][app_type][app_sub_type]
+    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers, sprinters_decay_factor)
 
     for i in range(num_servers):
         app = None
@@ -216,19 +216,23 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id, threshold):
             arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
             sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
             nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
-            max_queue_length = config["max_queue_length"]
+            max_queue_length = config["queue_app_max_queue_length"][app_sub_type]
             app = applications.QueueApp(arrival_tps, sprinting_tps, nominal_tps, max_queue_length)
         else:
             sys.exit("wrong app type!")
 
         if policy_type == "ac_policy":
-            a_lr = config["a_lr"]
-            c_lr = config["c_lr"]
+            a_lr = config["a_lr"][app_type][app_sub_type]
+            c_lr = config["c_lr"][app_type][app_sub_type]
             a_h1_size = config["a_h1_size"]
             c_h1_size = config["c_h1_size"]
+            normalization_factor = config["normalization_factor"][app_type][app_sub_type]
             policy = policies.ACPolicy(2, 4, a_h1_size, c_h1_size, a_lr, c_lr)
             server = servers.ACServer(i, policy, app, servers_config, normalization_factor)
         elif policy_type == "thr_policy":
+            threshold = threshold_in
+            if threshold == -1:
+                threshold = config["threshold"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
             server = servers.ThrServer(i, policy, app, servers_config)
         else:

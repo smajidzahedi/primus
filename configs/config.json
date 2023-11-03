@@ -7,8 +7,28 @@
     },
     "normalization_factor": {
         "uniform": {"u1": 0.1},
-        "markov": {"m1": 0.1, "m2": 0.1, "m3": 0.1},
+        "markov": {"m1": 0.1, "m2": 0.001, "m3": 0.09},
         "queue": {"q1": 0.1, "q2": 0.1, "q3": 0.1}
+    },
+    "a_lr": {
+        "uniform": {"u1": 0.0003},
+        "markov": {"m1": 0.0005, "m2": 0.0003, "m3": 0.0006},
+        "queue": {"q1": 0.0001, "q2": 0.0001, "q3": 0.0001}
+    },
+    "c_lr": {
+        "uniform": {"u1": 0.00045},
+        "markov": {"m1": 0.00075, "m2": 0.00045, "m3": 0.0012},
+        "queue": {"q1": 0.0002, "q2": 0.0002, "q3": 0.0002}
+    },
+    "sprinters_decay_factor": {
+       "uniform": {"u1": 0.997},
+       "markov": {"m1": 0.992, "m2": 0.997, "m3": 0.9952},
+       "queue": {"q1": 0.994, "q2": 0.994, "q3": 0.994}
+    },
+    "threshold": {
+       "uniform": {"u1": 0.9},
+       "markov": {"m1": 0.7, "m2": 0.9, "m3": 0.4},
+       "queue": {"q1": 0.994, "q2": 0.994, "q3": 0.994}
     },
     "app_states": ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"],
     "app_utilities": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
@@ -51,26 +71,28 @@
         ]
     },
     "queue_app_arrival_tps": {
-        "q1": 15,
-        "q2": 15,
+        "q1": 31,
+        "q2": 33,
         "q3": 15
     },
     "queue_app_sprinting_tps": {
-        "q1": 100,
-        "q2": 100,
+        "q1": 86,
+        "q2": 112,
         "q3": 100
     },
     "queue_app_nominal_tps": {
-        "q1": 15,
-        "q2": 15,
+        "q1": 41,
+        "q2": 44,
         "q3": 15
     },
-    "max_queue_length": 2000,
+    "queue_app_max_queue_length": {
+        "m1": 500,
+        "m2": 500,
+        "m3": 500
+    },
     "policy_types": ["ac_policy", "thr_policy"],
     "a_h1_size": 256,
     "c_h1_size": 256,
-    "a_lr": 0.0003,
-    "c_lr": 0.00045,
     "folder_name": "/Users/jingyiwu/Desktop/Project/data",
     "num_workers": 10,
     "num_servers": 100,
@@ -82,7 +104,6 @@
     "coordinator_config": {
         "total_active_iterations": 15000,
         "recovery_prob": 0.88,
-        "sprinters_decay_factor": 0.997,
         "min_frac": 0.25,
         "max_frac": 0.75,
         "release_frac": 0.2,

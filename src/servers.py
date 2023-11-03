@@ -138,6 +138,6 @@ class ThrServer(Server):
 
     # Get sprinting probability from Thr_Policy, and choose sprint or not by this probability, and get immediate reward
     def take_action(self):
-        action_probs, _ = self.policy(torch.tensor([self.app.get_sprinting_utility() - self.app.get_cooling_utility()]))
+        action_probs, _ = self.policy(torch.tensor([self.app.get_gained_utility()]))
         action = Categorical(action_probs).sample().item()
         self.action, self.reward = self.get_action_reward(action)
