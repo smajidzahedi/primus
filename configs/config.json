@@ -86,9 +86,9 @@
         "q3": 15
     },
     "queue_app_max_queue_length": {
-        "m1": 500,
-        "m2": 500,
-        "m3": 500
+        "q1": 500,
+        "q2": 500,
+        "q3": 500
     },
     "policy_types": ["ac_policy", "thr_policy"],
     "a_h1_size": 256,
@@ -102,7 +102,7 @@
         "discount_factor": 0.9999
     },
     "coordinator_config": {
-        "total_active_iterations": 15000,
+        "total_active_iterations": 5000,
         "recovery_prob": 0.88,
         "min_frac": 0.25,
         "max_frac": 0.75,

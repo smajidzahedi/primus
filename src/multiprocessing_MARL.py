@@ -23,13 +23,13 @@ set_seed(42)
 Coordinator: Communicates with workers and aggregates servers actions to determine if circuit breaker trips.
 """
 class Coordinator:
-    def __init__(self, coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers):
+    def __init__(self, coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers, sprinters_decay_factor):
 
         # Sprinters parameters
         self.frac_sprinters = 0  # Initialize num_sprinting
         self.avg_frac_sprinters_corrected = 0
         self.avg_frac_sprinters = 0 # initial value for exponential moving average of num_sprinting
-        self.sprinters_decay_factor = coordinator_config["sprinters_decay_factor"]  #   for fictitious play
+        self.sprinters_decay_factor = sprinters_decay_factor  #   for fictitious play
         self.avg_frac_sprinters_list = []
 
         # Iteration parameters
@@ -269,4 +269,4 @@ if __name__ == "__main__":
 
     config_file = "/Users/jingyiwu/Desktop/MARL/configs/config.json"
     
-    main(config_file, 2, 0, 1, 0.6)
+    main(config_file, 2, 0, 1, 0.9)
