@@ -261,12 +261,12 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     
 
 if __name__ == "__main__":
-    """parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")
+    parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")
     parser.add_argument("app_type_id", type=int, help="App type ID.")
     parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
     parser.add_argument("policy_id", type=int, help="Policy ID.")
-    args = parser.parse_args()"""
+    args = parser.parse_args()
 
-    config_file = "/Users/jingyiwu/Desktop/MARL/configs/config.json"
+    config_file = "/Users/jingyiwu/Desktop/Project/MARL/configs/config.json"
     
-    main(config_file, 2, 0, 1, 0.9)
+    main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id, -1)

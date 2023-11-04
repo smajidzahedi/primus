@@ -46,11 +46,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     plt.close()
 
     #   calculate average reward over rounds for different policy 
-    if policy_id == 0:
-        average_reward = mean_rewards[len(mean_rewards) - 1000:].mean()
-    else:
-        average_reward = mean_rewards.mean()
-
+    average_reward = mean_rewards[len(mean_rewards) - 1000:].mean()
     file_path = os.path.join(path, "different_policy_avg_rewards.txt")
     with open(file_path, 'w+') as file:
         file.write(f"{average_reward}\n")
@@ -59,13 +55,18 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
         # Iterate over all 10 servers
         x = list(range(1, total_iter+1))
         plt.figure(figsize=(40, 20)) 
+        decay_factor = 0.999 
         for server_id in range(num_servers):
+            round = 1
+            avg_length = 0
             y = []  # Initialize the y-axis
             file_path = os.path.join(path, f"server_{server_id}_app_states.txt")
             with open(file_path, 'r') as file:
                 lines = file.readlines()
             for line in lines:
-                y.append(float(line.strip()))  # Convert each line to a float and append to the y-axis
+                avg_length = decay_factor * avg_length + (1 - decay_factor) * float(line.strip())
+                y.append(avg_length / (1 - decay_factor ** round))  # Convert each line to a float and append to the y-axis
+                round += 1
             plt.plot(x, y, label=f'Server {server_id}')
         x_ticks = list(range(0, total_iter, 10000))
         x_tick_labels = [str(tick) for tick in x_ticks]  # Convert tick values to strings
@@ -81,13 +82,13 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     return average_reward
 
 if __name__ == "__main__":
-    """parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")
+    parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")
     parser.add_argument("app_type_id", type=int, help="App type ID.")
     parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
     parser.add_argument("policy_id", type=int, help="Policy ID.")
-    args = parser.parse_args()"""
+    args = parser.parse_args()
 
-    config_file = "/Users/jingyiwu/Desktop/MARL/configs/config.json"
+    config_file = "/Users/jingyiwu/Desktop/Project/MARL/configs/config.json"
     
-    avg_reward = main(config_file, 2, 0, 1)
+    avg_reward = main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id)
     print(f"Average reward: {avg_reward}")

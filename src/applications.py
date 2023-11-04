@@ -94,9 +94,6 @@ class QueueApp(App):
         self.nominal_tps = nominal_tps
         self.max_queue_length = max_queue_length
 
-    #   current state for queue app is the current queue length in range 0 to 1
-    def get_current_state(self):
-        return min(self.current_state / self.max_queue_length, 1.0)
 
     def get_sprinting_utility(self):
         new_queue_length = max(0, self.current_state + self.arrival_tps - self.sprinting_tps)
