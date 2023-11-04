@@ -99,17 +99,17 @@ class QueueApp(App):
         return min(self.current_state / self.max_queue_length, 1.0)
 
     def get_sprinting_utility(self):
-        return -min(self.current_state + self.arrival_tps - min(self.current_state, self.sprinting_tps),
-                    self.max_queue_length) / self.max_queue_length
+        new_queue_length = max(0, self.current_state + self.arrival_tps - self.sprinting_tps)
+        return -min(new_queue_length, self.max_queue_length) / self.max_queue_length
 
     def get_normal_utility(self):
-        return -min(self.current_state + self.arrival_tps - min(self.current_state, self.nominal_tps),
-                    self.max_queue_length) / self.max_queue_length
+        new_queue_length = max(0, self.current_state + self.arrival_tps - self.nominal_tps)
+        return -min(new_queue_length, self.max_queue_length) / self.max_queue_length
 
     def update_state(self, action):
         super().update_state(action)
         arrived_tasks = np.random.poisson(self.arrival_tps)
-        departed_tasks = min(self.current_state, np.random.poisson(self.nominal_tps))
+        departed_tasks = np.random.poisson(self.nominal_tps)
         if action == 0:
-            departed_tasks = min(self.current_state, np.random.poisson(self.sprinting_tps))
-        self.current_state = self.current_state + arrived_tasks - departed_tasks
+            departed_tasks = np.random.poisson(self.sprinting_tps)
+        self.current_state = max(0, self.current_state + arrived_tasks - departed_tasks)
