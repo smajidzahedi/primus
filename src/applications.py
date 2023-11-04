@@ -11,16 +11,16 @@ class App:
         raise NotImplementedError("This method should be overridden.")
 
     def get_normal_utility(self):
-        pass
+        raise NotImplementedError("This method should be overridden.")
 
-    def get_gained_utility(self):
+    def get_delta_utility(self):
         return self.get_sprinting_utility() - self.get_normal_utility()
 
     def get_current_state(self):
         return float(self.current_state)
 
     def update_state(self, action):
-        self.app_state_history.append(self.current_state)
+        self.app_state_history.append(self.get_current_state())
 
     def print_state(self, server_id, path):
         file_path = os.path.join(path, f"server_{server_id}_app_states.txt")

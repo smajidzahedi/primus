@@ -28,7 +28,7 @@ class Server:
         if self.rack_state == 1:
             return 1, -self.recovery_cost
         elif self.server_state == 0 and action == 0:
-            return 0, self.app.get_gained_utility()
+            return 0, self.app.get_delta_utility()
         else:
             return 1, 0
 
@@ -86,8 +86,7 @@ class ACServer(Server):
         rack_state_tensor = torch.tensor([self.rack_state], dtype=torch.float32)
         server_state_tensor = torch.tensor([self.server_state], dtype=torch.float32)
         # app_state_tensor = torch.tensor([self.app.get_current_state()], dtype=torch.float32)
-        utility = self.app.get_gained_utility()
-        app_utility_tensor = torch.tensor([utility], dtype=torch.float32)
+        app_utility_tensor = torch.tensor([self.app.get_delta_utility()], dtype=torch.float32)
 
         self.a_next_state_tensor = self.normalization_factor * torch.cat((app_utility_tensor, self.frac_sprinters))
         self.c_next_state_tensor = self.normalization_factor * torch.cat((rack_state_tensor, server_state_tensor,
@@ -138,6 +137,6 @@ class ThrServer(Server):
 
     # Get sprinting probability from Thr_Policy, and choose sprint or not by this probability, and get immediate reward
     def take_action(self):
-        action_probs, _ = self.policy(torch.tensor([self.app.get_gained_utility()]))
+        action_probs, _ = self.policy(torch.tensor([self.app.get_delta_utility()]))
         action = Categorical(action_probs).sample().item()
         self.action, self.reward = self.get_action_reward(action)
