@@ -33,30 +33,27 @@ class Coordinator:
         self.avg_frac_sprinters_list = []
 
         # Iteration parameters
-        self.total_active_iterations = coordinator_config["total_active_iterations"]
-        self.num_active_iterations = 0 # store total number of active rounds
-        self.num_all_active_iterations = 0
-        self.num_recovery_iterations = 0
+        self.total_iterations = coordinator_config["total_iterations"]
+        self.current_iteration = 0 # store total number of active rounds
 
         # Worker and server parameters
         self.num_workers = num_workers
         self.w2c_queues = w2c_queues
         self.c2w_queues = c2w_queues
         self.num_servers = num_servers
+        self.costs = np.zeros(self.num_servers)
 
         # Recovery parameters
-        self.in_recovery = False    # flag for recovery
-        self.recovery_prob = coordinator_config["recovery_prob"]    # prob. for staying recovery state
+        self.global_cost = coordinator_config["global_cost"]
+        self.local_cost = coordinator_config["local_cost"]
         self.min_frac = coordinator_config["min_frac"]  # lower bound of sprinters of system trip
         self.max_frac = coordinator_config["max_frac"]  # higher bound of sprinters of system trip
-        self.release_frac = coordinator_config["release_frac"]  #   prob. of servers that can leave recovery state
-        self.rack_states = np.zeros(self.num_servers)
 
         # Privacy parameters
         self.c_epsilon = coordinator_config["c_epsilon"]
         self.c_delta = coordinator_config["c_delta"]
         self.epsilon = self.c_epsilon / np.log10(self.num_servers)
-        self.epsilon_prime = self.epsilon / self.total_active_iterations
+        self.epsilon_prime = self.epsilon / self.total_iterations
         self.delta = self.c_delta / self.num_servers
         self.alpha = 1 + 2 * np.log10(1 / self.delta) / self.epsilon
         self.var = self.alpha / (2 * self.num_servers ** 2 * self.epsilon_prime)
@@ -64,56 +61,44 @@ class Coordinator:
         self.add_noise = coordinator_config["add_noise"]
 
     #   Whether system trips or not
-    def is_tripped(self):
-        prob = min(max((self.frac_sprinters - self.min_frac) / (self.max_frac - self.min_frac), 0), 1)
-        return np.random.rand() < prob
+    def calculate_costs(self, actions):
+        self.costs = self.calculate_local_costs(actions) + self.calculate_global_costs()
+
+    def calculate_global_costs(self):
+        global_cost_factor = min(max((self.frac_sprinters - self.min_frac) / (self.max_frac - self.min_frac), 0), 1)
+        return self.global_cost * global_cost_factor * np.ones(self.num_servers)
+
+    def calculate_local_costs(self, actions):
+        local_cost_factor = np.ones(self.num_servers) * ((np.tanh(30 * (self.frac_sprinters - self.max_frac)) + 1) / 2)
+        return self.local_cost * local_cost_factor * (1 - actions)
 
     # Calculate number of sprinters in this round, determining whether system trip or not.
     # Calculate the fractional number of sprinters by Bias-Corrected Exponential Weighted Moving Average
     # Add noise on the fraction number of sprinters in this round (# of sprinters / total # of servers)
     def aggregate_actions(self, actions):
         self.frac_sprinters = (self.num_servers - actions.sum()) / self.num_servers
+        if self.add_noise == 1:
+            self.frac_sprinters += np.random.normal(loc=0, scale=self.sigma)
 
-        if self.in_recovery:
-            assert self.frac_sprinters == 0
-            if np.random.rand() > self.recovery_prob:   #   whether servers are allowed start to leave recovery state
-                self.in_recovery = False
-        else:
-            self.num_active_iterations += 1
-            self.in_recovery = self.is_tripped()
+        self.current_iteration += 1
 
-            self.avg_frac_sprinters *= self.sprinters_decay_factor
-            self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * self.frac_sprinters
-
-            if self.add_noise == 1:
-                self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * np.random.normal(loc=0, scale=self.sigma)
-
-            self.avg_frac_sprinters_corrected = self.avg_frac_sprinters / (1 - self.sprinters_decay_factor ** self.num_active_iterations)
-
-        # release servers from recovery state randomly
-        if self.in_recovery:
-            self.rack_states = np.ones(self.num_servers)
-        elif np.count_nonzero(self.rack_states) >= self.num_servers * self.release_frac: # randomly select servers leave recovery state
-            recovers = np.random.choice(np.where(self.rack_states == 1)[0], size=int(self.num_servers * self.release_frac), replace=False)
-            self.rack_states[recovers] = 0
-        else:   #   all servers leave recovery state
-            self.rack_states = np.zeros(self.num_servers)
-            self.num_all_active_iterations += 1
+        self.avg_frac_sprinters *= self.sprinters_decay_factor
+        self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * self.frac_sprinters
+        self.avg_frac_sprinters_corrected = self.avg_frac_sprinters / (1 - self.sprinters_decay_factor ** self.current_iteration)
 
     # Main function for coordinator
     def run_coordinator(self, path):
         actions_array = np.zeros(self.num_servers)
         server_ids = np.arange(0, self.num_servers)
         workers_server_ids = np.array_split(server_ids, self.num_workers)
-        iteration = 0
 
-        while self.num_all_active_iterations < self.total_active_iterations:
+        while self.current_iteration < self.total_iterations:
             # Split the array into self.num_workers parts
-            workers_rack_states = np.array_split(self.rack_states, self.num_workers)
+            workers_costs = np.array_split(self.costs, self.num_workers)
 
             # Now, iterate over the queues and reshaped states
-            for q, r_states in zip(self.c2w_queues, workers_rack_states):
-                q.put((self.avg_frac_sprinters_corrected, r_states, iteration))
+            for q, costs in zip(self.c2w_queues, workers_costs):
+                q.put((self.avg_frac_sprinters_corrected, costs, self.current_iteration))
 
             # get information from workers
             for q, ids in zip(self.w2c_queues, workers_server_ids):
@@ -121,17 +106,14 @@ class Coordinator:
                 actions_array[ids] = actions
 
             self.aggregate_actions(actions_array)
+            self.calculate_costs(actions_array)
             self.avg_frac_sprinters_list.append(self.avg_frac_sprinters_corrected)
-            iteration += 1
 
         # Send stop to all
         for q in self.c2w_queues:
             q.put('stop')
 
-        self.num_recovery_iterations = iteration - self.num_active_iterations
-
         self.print_frac_sprinters(path)
-        self.print_num_recovery(path)
 
     # Record fractional number of sprinters in each iteration
     def print_frac_sprinters(self, path):
@@ -141,12 +123,6 @@ class Coordinator:
                 #fs_num = round(np.mean(fs.tolist()), 2)
                 file.write(f"{fs}\n")
     
-    # Record total number of recovery iterations 
-    def print_num_recovery(self, path):
-        file_path = os.path.join(path, "num_recovery_iterations.txt")
-        with open(file_path, 'w+') as file:
-            file.write(f"{self.num_recovery_iterations}\n")
-
 
 """
 Workers: Manages several servers. 
@@ -168,9 +144,9 @@ class Worker:
                     server.print_rewards_and_app_states(path)
                 break
 
-            frac_sprinters, rack_states, iteration = info
+            frac_sprinters, costs, iteration = info
             for i, server in enumerate(self.servers_list):
-                action, reward = server.run_server(rack_states[i], frac_sprinters, iteration)
+                action = server.run_server(costs[i], frac_sprinters, iteration)
                 actions[i] = action
             # Send infor to coordinator
             self.w2c_queue.put(actions)
@@ -206,7 +182,6 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers, sprinters_decay_factor)
 
     for i in range(num_servers):
-        app = None
         if app_type == "markov":
             transition_matrix = config["markov_app_transition_matrices"][app_sub_type]
             app = applications.MarkovApp(app_states, transition_matrix, app_utilities, np.random.choice(app_states))

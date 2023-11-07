@@ -8,7 +8,6 @@ class Server:
     def __init__(self, server_id, policy, app, server_config):
         self.server_id = server_id
 
-        self.rack_state = 0         # initial state: Normal
         self.server_state = 0       # initial state: Active
         self.action = 1             # initial action: Not sprint
         self.reward = 0             # initial reward: Zero
@@ -18,24 +17,21 @@ class Server:
         self.policy = policy
         self.app = app
 
-        self.recovery_cost = server_config["recovery_cost"]
         self.cooling_prob = server_config["cooling_prob"]
         self.discount_factor = server_config["discount_factor"]
 
         self.reward_history = []
 
     def get_action_reward(self, action):
-        if self.rack_state == 1:
-            return 1, -self.recovery_cost
-        elif self.server_state == 0 and action == 0:
+        if self.server_state == 0 and action == 0:
             return 0, self.app.get_delta_utility()
         else:
             return 1, 0
 
     # update application state, rack_state, server_state, and fractional number of sprinters.
-    def update_state(self, rack_state, frac_sprinters):
+    def update_state(self, cost, frac_sprinters):
         self.app.update_state(self.action)
-        self.rack_state = rack_state
+        self.reward -= cost
         self.frac_sprinters = torch.tensor([frac_sprinters], dtype=torch.float32)
 
         if self.server_state == 1:
@@ -53,11 +49,11 @@ class Server:
     def take_action(self):
         pass
 
-    def run_server(self, rack_state, frac_sprinters, iteration):
-        self.update_state(rack_state, frac_sprinters)
+    def run_server(self, cost, frac_sprinters, iteration):
+        self.update_state(cost, frac_sprinters)
         self.update_policy()
         self.take_action()
-        return self.action, self.reward
+        return self.action
 
     # write reward into files
     def print_rewards_and_app_states(self, path):
@@ -83,14 +79,12 @@ class ACServer(Server):
     def update_state(self, rack_state, frac_sprinters):
         super().update_state(rack_state, frac_sprinters)
 
-        rack_state_tensor = torch.tensor([self.rack_state], dtype=torch.float32)
         server_state_tensor = torch.tensor([self.server_state], dtype=torch.float32)
-        # app_state_tensor = torch.tensor([self.app.get_current_state()], dtype=torch.float32)
         app_utility_tensor = torch.tensor([self.app.get_delta_utility()], dtype=torch.float32)
 
         self.a_next_state_tensor = self.normalization_factor * torch.cat((app_utility_tensor, self.frac_sprinters))
-        self.c_next_state_tensor = self.normalization_factor * torch.cat((rack_state_tensor, server_state_tensor,
-                                                                          app_utility_tensor, self.frac_sprinters))
+        self.c_next_state_tensor = self.normalization_factor * torch.cat((server_state_tensor, app_utility_tensor,
+                                                                          self.frac_sprinters))
 
     # Update Actor and Critic networks' parameters
     def update_policy(self):
@@ -120,10 +114,7 @@ class ACServer(Server):
         self.action_probs, self.state_value = self.policy(input_tensor)
         action = np.random.choice(np.array([0, 1]), p=self.action_probs.detach().numpy())
         self.action, self.reward = self.get_action_reward(action)
-        if self.rack_state == 0 and self.server_state == 0:
-            self.update_actor = True
-        else:
-            self.update_actor = False
+        self.update_actor = 1 - self.server_state
 
 
 #  Server with threshold policy.

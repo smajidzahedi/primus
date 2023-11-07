@@ -82,7 +82,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     return average_reward
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")
+    parser = argparse.ArgumentParser(description="Run plot with specified parameters.")
     parser.add_argument("app_type_id", type=int, help="App type ID.")
     parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
     parser.add_argument("policy_id", type=int, help="Policy ID.")
