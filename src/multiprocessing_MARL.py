@@ -202,7 +202,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             a_h1_size = config["a_h1_size"]
             c_h1_size = config["c_h1_size"]
             normalization_factor = config["normalization_factor"][app_type][app_sub_type]
-            policy = policies.ACPolicy(2, 4, a_h1_size, c_h1_size, a_lr, c_lr)
+            policy = policies.ACPolicy(2, 3, a_h1_size, c_h1_size, a_lr, c_lr)
             server = servers.ACServer(i, policy, app, servers_config, normalization_factor)
         elif policy_type == "thr_policy":
             threshold = threshold_in

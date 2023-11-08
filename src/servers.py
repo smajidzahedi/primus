@@ -4,6 +4,7 @@ from torch.distributions import Categorical
 import torch
 import numpy as np
 
+
 class Server:
     def __init__(self, server_id, policy, app, server_config):
         self.server_id = server_id
@@ -12,7 +13,7 @@ class Server:
         self.action = 1             # initial action: Not sprint
         self.reward = 0             # initial reward: Zero
 
-        self.frac_sprinters = torch.zeros(1)
+        self.frac_sprinters = 0
 
         self.policy = policy
         self.app = app
@@ -64,7 +65,6 @@ class Server:
         self.app.print_state(self.server_id, path)
 
 
-
 # Server with Actor-Critic policy
 class ACServer(Server):
     def __init__(self, server_id, policy, app, server_config, normalization_factor):
@@ -76,15 +76,18 @@ class ACServer(Server):
         self.update_actor = True
         self.normalization_factor = normalization_factor
 
-    def update_state(self, rack_state, frac_sprinters):
-        super().update_state(rack_state, frac_sprinters)
+    def update_state(self, cost, frac_sprinters):
+        super().update_state(cost, frac_sprinters)
 
         server_state_tensor = torch.tensor([self.server_state], dtype=torch.float32)
-        app_utility_tensor = torch.tensor([self.app.get_delta_utility()], dtype=torch.float32)
+        app_delta_utility_tensor = torch.tensor([self.app.get_delta_utility()], dtype=torch.float32)
+        frac_sprinters_tensor = torch.tensor([self.frac_sprinters], dtype=torch.float32)
 
-        self.a_next_state_tensor = self.normalization_factor * torch.cat((app_utility_tensor, self.frac_sprinters))
-        self.c_next_state_tensor = self.normalization_factor * torch.cat((server_state_tensor, app_utility_tensor,
-                                                                          self.frac_sprinters))
+        self.a_next_state_tensor = self.normalization_factor * torch.cat((app_delta_utility_tensor,
+                                                                          frac_sprinters_tensor))
+        self.c_next_state_tensor = self.normalization_factor * torch.cat((server_state_tensor,
+                                                                          app_delta_utility_tensor,
+                                                                          frac_sprinters_tensor))
 
     # Update Actor and Critic networks' parameters
     def update_policy(self):
@@ -113,7 +116,7 @@ class ACServer(Server):
         input_tensor = [self.a_next_state_tensor, self.c_next_state_tensor]
         self.action_probs, self.state_value = self.policy(input_tensor)
         action = np.random.choice(np.array([0, 1]), p=self.action_probs.detach().numpy())
-        self.action, self.reward = self.get_action_reward(action)
+        self.action, self.reward = self.get_action_delta_utility(action)
         self.update_actor = 1 - self.server_state
 
 
@@ -130,4 +133,4 @@ class ThrServer(Server):
     def take_action(self):
         action_probs, _ = self.policy(torch.tensor([self.app.get_delta_utility()]))
         action = Categorical(action_probs).sample().item()
-        self.action, self.reward = self.get_action_reward(action)
+        self.action, self.reward = self.get_action_delta_utility(action)

@@ -26,7 +26,7 @@ class ACPolicy(Policy):
         self.a_lr = a_lr
         actor_params = [self.actor_layer1.weight, self.actor_layer1.bias,
                         self.actor_layer2.weight, self.actor_layer2.bias]
-        self.actor_optimizer = optim.Adam(actor_params, lr=self.a_lr)
+        self.actor_optimizer = optim.AdamW(actor_params, lr=self.a_lr)
 
         # Initialize Critic network
         self.c_lr = c_lr
@@ -35,7 +35,7 @@ class ACPolicy(Policy):
         self.critic_layer2 = nn.Linear(c_h1_size, 1)
         critic_params = [self.critic_layer1.weight, self.critic_layer1.bias,
                          self.critic_layer2.weight, self.critic_layer2.bias]
-        self.critic_optimizer = optim.Adam(critic_params, lr=self.c_lr)
+        self.critic_optimizer = optim.AdamW(critic_params, lr=self.c_lr)
 
     def forward_actor(self, x):
         x2 = x ** 2

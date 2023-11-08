@@ -4,6 +4,7 @@ import numpy as np
 import json
 import argparse
 
+
 def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     with open(config_file_name, 'r') as f:
         config = json.load(f)
@@ -53,11 +54,11 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
 
     if app_type_id == 2:
         # Iterate over all 10 servers
-        x = list(range(1, total_iter+1))
-        plt.figure(figsize=(40, 20)) 
-        decay_factor = 0.999 
+        x = list(range(1, total_iter + 1))
+        plt.figure(figsize=(40, 20))
+        decay_factor = 0.999
         for server_id in range(num_servers):
-            round = 1
+            itr = 1
             avg_length = 0
             y = []  # Initialize the y-axis
             file_path = os.path.join(path, f"server_{server_id}_app_states.txt")
@@ -65,8 +66,8 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
                 lines = file.readlines()
             for line in lines:
                 avg_length = decay_factor * avg_length + (1 - decay_factor) * float(line.strip())
-                y.append(avg_length / (1 - decay_factor ** round))  # Convert each line to a float and append to the y-axis
-                round += 1
+                y.append(avg_length / (1 - decay_factor ** itr))
+                itr += 1
             plt.plot(x, y, label=f'Server {server_id}')
         x_ticks = list(range(0, total_iter, 10000))
         x_tick_labels = [str(tick) for tick in x_ticks]  # Convert tick values to strings
@@ -78,8 +79,9 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
         plt.grid(True)
         plt.savefig(os.path.join(path, f"queue_length.png"))
         plt.close()
-        
+
     return average_reward
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run plot with specified parameters.")
