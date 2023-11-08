@@ -23,7 +23,7 @@ class Server:
 
         self.reward_history = []
 
-    def get_action_reward(self, action):
+    def get_action_delta_utility(self, action):
         if self.server_state == 0 and action == 0:
             return 0, self.app.get_delta_utility()
         else:
