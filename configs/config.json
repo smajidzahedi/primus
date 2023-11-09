@@ -7,7 +7,7 @@
     },
     "normalization_factor": {
         "uniform": {
-            "u1": 0.01
+            "u1": 0.1
         },
         "markov": {
             "m1": 0.01,
@@ -153,7 +153,7 @@
     "coordinator_config": {
         "global_cost": 1,
         "local_cost": 1,
-        "total_iterations": 10000,
+        "total_iterations": 4000,
         "min_frac": 0.25,
         "max_frac": 0.75,
         "add_noise": 0,
