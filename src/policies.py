@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 from torch import nn, optim
+from torch.distributions import Categorical, Normal
+
 
 class Policy(nn.Module):
     def __init__(self):
@@ -20,12 +22,14 @@ class ACPolicy(Policy):
     def __init__(self, a_input_size, c_input_size, a_h1_size, c_h1_size, a_lr, c_lr):
         super().__init__()
         # Initialize Actor network
-        a_l1_size = a_input_size ** 2 + 2 * a_input_size
+        a_l1_size = a_input_size ** 2 + a_input_size
         self.actor_layer1 = nn.Linear(a_l1_size, a_h1_size)
-        self.actor_layer2 = nn.Linear(a_h1_size, 2)
+        self.actor_layer2_mean = nn.Linear(a_h1_size, 1)
+        self.actor_layer2_std = nn.Linear(a_h1_size, 1)
         self.a_lr = a_lr
         actor_params = [self.actor_layer1.weight, self.actor_layer1.bias,
-                        self.actor_layer2.weight, self.actor_layer2.bias]
+                        self.actor_layer2_mean.weight, self.actor_layer2_mean.bias,
+                        self.actor_layer2_std.weight, self.actor_layer2_std.bias]
         self.actor_optimizer = optim.AdamW(actor_params, lr=self.a_lr)
 
         # Initialize Critic network
@@ -39,13 +43,12 @@ class ACPolicy(Policy):
 
     def forward_actor(self, x):
         x2 = x ** 2
-        xx = torch.outer(x, x).flatten()
-        x = torch.cat((x2, xx, x))
+        x = torch.cat((x2, x))
         x = torch.relu(self.actor_layer1(x))
-        # x_max = torch.max(x)
-        # x = x - x_max
-        softmax = torch.softmax(self.actor_layer2(x), dim=-1)
-        return softmax
+        mean = self.actor_layer2_mean(x)
+        std = torch.exp(self.actor_layer2_std(x))
+        std = torch.clamp(std, min=0, max=0.01)
+        return Normal(loc=mean, scale=std)
 
     def forward_critic(self, x):
         x4 = x ** 4
@@ -59,9 +62,9 @@ class ACPolicy(Policy):
 
     def forward(self, x):
         x_actor, x_critic = x[0], x[1]
-        action_prob = self.forward_actor(x_actor)
+        dist = self.forward_actor(x_actor)
         state_value = self.forward_critic(x_critic)
-        return action_prob, state_value
+        return dist, state_value
 
 
 """
@@ -81,4 +84,4 @@ class ThrPolicy(Policy):
             action_prob = torch.tensor([1.0, 0.0])
         else:
             action_prob = torch.tensor([0.0, 1.0])
-        return action_prob, 0
+        return Categorical(action_prob), 0

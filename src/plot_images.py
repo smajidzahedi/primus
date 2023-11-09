@@ -84,13 +84,13 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run plot with specified parameters.")
-    parser.add_argument("app_type_id", type=int, help="App type ID.")
-    parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
-    parser.add_argument("policy_id", type=int, help="Policy ID.")
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description="Run plot with specified parameters.")
+    # parser.add_argument("app_type_id", type=int, help="App type ID.")
+    # parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
+    # parser.add_argument("policy_id", type=int, help="Policy ID.")
+    # args = parser.parse_args()
 
-    config_file = "/Users/jingyiwu/Desktop/Project/MARL/configs/config.json"
+    config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
     
-    avg_reward = main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id)
+    avg_reward = main(config_file, 0, 0, 0)
     print(f"Average reward: {avg_reward}")

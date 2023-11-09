@@ -1,6 +1,5 @@
 import os
-from torch import nn
-from torch.distributions import Categorical
+from torch.distributions import Normal
 import torch
 import numpy as np
 
@@ -10,7 +9,8 @@ class Server:
         self.server_id = server_id
 
         self.server_state = 0       # initial state: Active
-        self.action = 1             # initial action: Not sprint
+        self.action = Normal(loc=1, scale=0.1).sample()             # initial action: Not sprint
+        self.taken_action = 1
         self.reward = 0             # initial reward: Zero
 
         self.frac_sprinters = 0
@@ -23,23 +23,23 @@ class Server:
 
         self.reward_history = []
 
-    def get_action_delta_utility(self, action):
-        if self.server_state == 0 and action == 0:
+    def get_action_delta_utility(self):
+        if self.server_state == 0 and self.action.item() == 0:
             return 0, self.app.get_delta_utility()
         else:
             return 1, 0
 
     # update application state, rack_state, server_state, and fractional number of sprinters.
     def update_state(self, cost, frac_sprinters):
-        self.app.update_state(self.action)
+        self.app.update_state(self.action.item())
         self.reward -= cost
         self.frac_sprinters = torch.tensor([frac_sprinters], dtype=torch.float32)
 
         if self.server_state == 1:
-            assert self.action == 1
+            assert self.taken_action == 1
             if np.random.rand() > self.cooling_prob:    # stay in cooling
                 self.server_state = 0
-        elif self.action == 0:     # go to cooling
+        elif self.taken_action == 0:     # go to cooling
             self.server_state = 1
 
         self.reward_history.append(self.reward)
@@ -54,7 +54,7 @@ class Server:
         self.update_state(cost, frac_sprinters)
         self.update_policy()
         self.take_action()
-        return self.action
+        return self.taken_action
 
     # write reward into files
     def print_rewards_and_app_states(self, path):
@@ -70,10 +70,10 @@ class ACServer(Server):
     def __init__(self, server_id, policy, app, server_config, normalization_factor):
         super().__init__(server_id, policy, app, server_config)
         self.state_value = torch.tensor([0.0], requires_grad=True)
-        self.action_probs = torch.tensor([0.0, 1.0], requires_grad=True)
+        self.distribution = Normal(loc=1, scale=0.1)
         self.a_next_state_tensor = None
         self.c_next_state_tensor = None
-        self.update_actor = True
+        self.update_actor = 0
         self.normalization_factor = normalization_factor
 
     def update_state(self, cost, frac_sprinters):
@@ -83,8 +83,7 @@ class ACServer(Server):
         app_delta_utility_tensor = torch.tensor([self.app.get_delta_utility()], dtype=torch.float32)
         frac_sprinters_tensor = torch.tensor([self.frac_sprinters], dtype=torch.float32)
 
-        self.a_next_state_tensor = self.normalization_factor * torch.cat((app_delta_utility_tensor,
-                                                                          frac_sprinters_tensor))
+        self.a_next_state_tensor = self.normalization_factor * frac_sprinters_tensor
         self.c_next_state_tensor = self.normalization_factor * torch.cat((server_state_tensor,
                                                                           app_delta_utility_tensor,
                                                                           frac_sprinters_tensor))
@@ -92,13 +91,13 @@ class ACServer(Server):
     # Update Actor and Critic networks' parameters
     def update_policy(self):
         next_state_value = self.policy.forward_critic(self.c_next_state_tensor)
-        advantage = self.reward + self.discount_factor * next_state_value - self.state_value
+        estimate = self.reward + self.discount_factor * next_state_value.detach()
+        advantage = estimate - self.state_value
 
-        action_log_prob = torch.log(self.action_probs)[self.action]
+        action_log_prob = self.distribution.log_prob(self.action).unsqueeze(0)
         actor_loss = -action_log_prob * advantage.detach()
 
-        loss_fn = nn.MSELoss()
-        critic_loss = loss_fn(self.state_value, self.reward + self.discount_factor * next_state_value)
+        critic_loss = advantage.pow(2).mean()
 
         # Update the actor
         if self.update_actor:
@@ -114,10 +113,16 @@ class ACServer(Server):
     # get threshold value and state value from AC_Policy network, choose sprint or not and get immediate reward
     def take_action(self):
         input_tensor = [self.a_next_state_tensor, self.c_next_state_tensor]
-        self.action_probs, self.state_value = self.policy(input_tensor)
-        action = np.random.choice(np.array([0, 1]), p=self.action_probs.detach().numpy())
-        self.action, self.reward = self.get_action_delta_utility(action)
+        self.distribution, self.state_value = self.policy(input_tensor)
+        self.action = self.distribution.sample()
+        self.taken_action, self.reward = self.get_action_delta_utility()
         self.update_actor = 1 - self.server_state
+
+    def get_action_delta_utility(self):
+        if self.server_state == 0 and self.app.get_delta_utility() > self.action.item():
+            return 0, self.app.get_delta_utility()
+        else:
+            return 1, 0
 
 
 #  Server with threshold policy.
@@ -131,6 +136,6 @@ class ThrServer(Server):
 
     # Get sprinting probability from Thr_Policy, and choose sprint or not by this probability, and get immediate reward
     def take_action(self):
-        action_probs, _ = self.policy(torch.tensor([self.app.get_delta_utility()]))
-        action = Categorical(action_probs).sample().item()
-        self.action, self.reward = self.get_action_delta_utility(action)
+        dist, _ = self.policy(torch.tensor([self.app.get_delta_utility()]))
+        self.action = dist.sample()
+        self.taken_action, self.reward = self.get_action_delta_utility()

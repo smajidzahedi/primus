@@ -5,7 +5,6 @@ import torch
 import time
 import os
 import json
-import argparse
 
 import applications
 import policies
@@ -16,25 +15,27 @@ def set_seed(seed):
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-set_seed(42)
 
+set_seed(42)
 
 """
 Coordinator: Communicates with workers and aggregates servers actions to determine if circuit breaker trips.
 """
+
+
 class Coordinator:
     def __init__(self, coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers, sprinters_decay_factor):
 
         # Sprinters parameters
         self.frac_sprinters = 0  # Initialize num_sprinting
         self.avg_frac_sprinters_corrected = 0
-        self.avg_frac_sprinters = 0 # initial value for exponential moving average of num_sprinting
-        self.sprinters_decay_factor = sprinters_decay_factor  #   for fictitious play
+        self.avg_frac_sprinters = 0  # initial value for exponential moving average of num_sprinting
+        self.sprinters_decay_factor = sprinters_decay_factor  # for fictitious play
         self.avg_frac_sprinters_list = []
 
         # Iteration parameters
         self.total_iterations = coordinator_config["total_iterations"]
-        self.current_iteration = 0 # store total number of active rounds
+        self.current_iteration = 0  # store total number of active rounds
 
         # Worker and server parameters
         self.num_workers = num_workers
@@ -69,7 +70,7 @@ class Coordinator:
         return self.global_cost * global_cost_factor * np.ones(self.num_servers)
 
     def calculate_local_costs(self, actions):
-        local_cost_factor = np.ones(self.num_servers) * ((np.tanh(30 * (self.frac_sprinters - self.max_frac)) + 1) / 2)
+        local_cost_factor = (np.tanh(30 * (self.frac_sprinters - self.max_frac)) + 1) / 2
         return self.local_cost * local_cost_factor * (1 - actions)
 
     # Calculate number of sprinters in this round, determining whether system trip or not.
@@ -84,7 +85,8 @@ class Coordinator:
 
         self.avg_frac_sprinters *= self.sprinters_decay_factor
         self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * self.frac_sprinters
-        self.avg_frac_sprinters_corrected = self.avg_frac_sprinters / (1 - self.sprinters_decay_factor ** self.current_iteration)
+        self.avg_frac_sprinters_corrected = self.avg_frac_sprinters / (
+                    1 - self.sprinters_decay_factor ** self.current_iteration)
 
     # Main function for coordinator
     def run_coordinator(self, path):
@@ -120,13 +122,15 @@ class Coordinator:
         file_path = os.path.join(path, "frac_sprinters.txt")
         with open(file_path, 'w+') as file:
             for fs in self.avg_frac_sprinters_list:
-                #fs_num = round(np.mean(fs.tolist()), 2)
+                # fs_num = round(np.mean(fs.tolist()), 2)
                 file.write(f"{fs}\n")
-    
+
 
 """
 Workers: Manages several servers. 
 """
+
+
 class Worker:
     def __init__(self, servers_list, w2c_queue, c2w_queue):
         self.num_servers = len(servers_list)
@@ -179,7 +183,8 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     worker_processors = []
 
     sprinters_decay_factor = config["sprinters_decay_factor"][app_type][app_sub_type]
-    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers, sprinters_decay_factor)
+    coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers,
+                              sprinters_decay_factor)
 
     for i in range(num_servers):
         if app_type == "markov":
@@ -202,7 +207,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             a_h1_size = config["a_h1_size"]
             c_h1_size = config["c_h1_size"]
             normalization_factor = config["normalization_factor"][app_type][app_sub_type]
-            policy = policies.ACPolicy(2, 3, a_h1_size, c_h1_size, a_lr, c_lr)
+            policy = policies.ACPolicy(1, 3, a_h1_size, c_h1_size, a_lr, c_lr)
             server = servers.ACServer(i, policy, app, servers_config, normalization_factor)
         elif policy_type == "thr_policy":
             threshold = threshold_in
@@ -236,12 +241,72 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")
-    parser.add_argument("app_type_id", type=int, help="App type ID.")
-    parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
-    parser.add_argument("policy_id", type=int, help="Policy ID.")
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description="Run MARL with specified parameters.")
+    # parser.add_argument("app_type_id", type=int, help="App type ID.")
+    # parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
+    # parser.add_argument("policy_id", type=int, help="Policy ID.")
+    # args = parser.parse_args()
 
-    config_file = "/Users/jingyiwu/Desktop/Project/MARL/configs/config.json"
-    
-    main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id, -1)
+    config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
+
+    main(config_file, 0, 0, 0, -1)
+
+    # (0.7, 0.11478)
+
+    # test_policy = policies.ACPolicy(2, 3, 256, 256, 0.001, 0.002)
+    # s1_tensor = torch.tensor([0.1], dtype=torch.float32)
+    # s2_tensor = torch.tensor([0.2], dtype=torch.float32)
+    # s3_tensor = torch.tensor([0.3], dtype=torch.float32)
+    #
+    # a_s1 = 0.1 * torch.cat((s1_tensor, s2_tensor))
+    # c_s1 = 0.1 * torch.cat((s1_tensor, s2_tensor, s3_tensor))
+    #
+    # a_current = a_s1
+    # c_current = c_s1
+    #
+    # avg_reward = 0
+    # discount_factor = 0.01
+    #
+    # dist = torch.distributions.Categorical(torch.tensor([0, 1]))
+    # print(dist.sample())
+    #
+    # for i in range(1, 10000):
+    #     input_tensor = [a_current, c_current]
+    #     dist, state_value = test_policy(input_tensor)
+    #     action = dist.sample().item()
+    #
+    #     if action == 0:
+    #         reward = 0.7
+    #     else:
+    #         reward = 0
+    #
+    #     a_next = a_current
+    #     c_next = c_current
+    #
+    #     next_state_value = test_policy.forward_critic(c_next)
+    #     estimate = reward + discount_factor * next_state_value.detach()
+    #     # estimate = reward - avg_reward + next_state_value.detach()
+    #     # avg_reward = avg_reward + discount_factor * advantage.item()
+    #
+    #     advantage = estimate - state_value
+    #
+    #     action_log_prob = dist.log_prob(torch.tensor([action])).unsqueeze(0)
+    #     a_loss = - action_log_prob * advantage.detach()
+    #
+    #     # loss_fn = nn.MSELoss()
+    #     # c_loss = loss_fn(state_value, estimate)
+    #     c_loss = advantage.pow(2).mean()
+    #
+    #     test_policy.actor_optimizer.zero_grad()
+    #     a_loss.backward()
+    #     test_policy.actor_optimizer.step()
+    #
+    #     test_policy.critic_optimizer.zero_grad()
+    #     c_loss.backward()
+    #     test_policy.critic_optimizer.step()
+    #
+    # dist, learned_value = test_policy([a_current, c_current])
+    # print(avg_reward)
+    # print(learned_value.item())
+    # print(dist.probs.detach().numpy())
+
