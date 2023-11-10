@@ -15,7 +15,7 @@
             "m3": 0.01
         },
         "queue": {
-            "q1": 0.01,
+            "q1": 0.05,
             "q2": 0.01,
             "q3": 0.01
         }
@@ -30,7 +30,7 @@
             "m3": 0.001
         },
         "queue": {
-            "q1": 0.001,
+            "q1": 0.0001,
             "q2": 0.001,
             "q3": 0.001
         }
@@ -45,7 +45,7 @@
             "m3": 0.002
         },
         "queue": {
-            "q1": 0.002,
+            "q1": 0.0002,
             "q2": 0.002,
             "q3": 0.002
         }
@@ -60,7 +60,7 @@
             "m3": 0.99
         },
         "queue": {
-            "q1": 0.99,
+            "q1": 0.995,
             "q2": 0.99,
             "q3": 0.99
         }
@@ -75,7 +75,7 @@
             "m3": 0.3
         },
         "queue": {
-            "q1": 0.01,
+            "q1": 0.03,
             "q2": 0.01,
             "q3": 0.01
         }
@@ -136,24 +136,26 @@
         "q3": 25
     },
     "queue_app_max_queue_length": {
-        "q1": 200,
+        "q1": 50,
         "q2": 200,
         "q3": 200
     },
     "policy_types": ["ac_policy", "thr_policy"],
-    "a_h1_size": 256,
-    "c_h1_size": 256,
+    "ac_policy_config": {
+        "a_h1_size": 256,
+        "c_h1_size": 256,
+        "discount_factor": 0.99
+    },
     "folder_name": "/Users/smzahedi/Desktop/Project/data",
     "num_workers": 10,
-    "num_servers": 1000,
+    "num_servers": 100,
     "servers_config": {
-        "cooling_prob": 0.5,
-        "discount_factor": 0.99
+        "cooling_prob": 0.5
     },
     "coordinator_config": {
         "global_cost": 1,
         "local_cost": 1,
-        "total_iterations": 4000,
+        "total_iterations":  5000,
         "min_frac": 0.25,
         "max_frac": 0.75,
         "add_noise": 0,

@@ -10,11 +10,11 @@ class App:
     def get_sprinting_utility(self):
         raise NotImplementedError("This method should be overridden.")
 
-    def get_normal_utility(self):
+    def get_nominal_utility(self):
         raise NotImplementedError("This method should be overridden.")
 
     def get_delta_utility(self):
-        return self.get_sprinting_utility() - self.get_normal_utility()
+        return self.get_sprinting_utility() - self.get_nominal_utility()
 
     def get_current_state(self):
         return float(self.current_state)
@@ -46,7 +46,7 @@ class MarkovApp(App):
         index = self.app_states.index(self.current_state)
         return self.utilities[index]
 
-    def get_normal_utility(self):
+    def get_nominal_utility(self):
         return 0
 
     def update_state(self, action):
@@ -71,7 +71,7 @@ class UniformApp(App):
         index = self.app_states.index(self.current_state)
         return self.utilities[index]
 
-    def get_normal_utility(self):
+    def get_nominal_utility(self):
         return 0
 
     def update_state(self, action):
@@ -94,12 +94,11 @@ class QueueApp(App):
         self.nominal_tps = nominal_tps
         self.max_queue_length = max_queue_length
 
-
     def get_sprinting_utility(self):
         new_queue_length = max(0, self.current_state + self.arrival_tps - self.sprinting_tps)
         return -min(new_queue_length, self.max_queue_length) / self.max_queue_length
 
-    def get_normal_utility(self):
+    def get_nominal_utility(self):
         new_queue_length = max(0, self.current_state + self.arrival_tps - self.nominal_tps)
         return -min(new_queue_length, self.max_queue_length) / self.max_queue_length
 
