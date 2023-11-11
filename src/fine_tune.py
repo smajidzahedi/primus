@@ -37,25 +37,29 @@ def format(obj, indent_level=0):
         return json.dumps(obj)
 
 
-def objective(trial, config_file_name, app_type_id, app_type_sub_id, policy_id):
+def objective(trial, config_file_name, app_type_id, app_type_sub_id):
     
     # Load the configuration file
     with open(config_file_name, 'r') as f:
         config = json.load(f)
     app_type = config["app_types"][app_type_id]
     app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
-    config["a_lr"][app_type][app_sub_type] = trial.suggest_categorical("a_lr", [1e-4, 2e-4, 3e-4, 
-                                                        4e-4, 5e-4, 6e-4,
-                                                        7e-4, 8e-4, 9e-4])  
-    b = trial.suggest_categorical("b", [1.5, 2.0, 2.5, 3.0])
+    config["a_lr"][app_type][app_sub_type] = trial.suggest_categorical("a_lr", 
+                                                                       [1e-4, 2e-4, 3e-4,
+                                                                        4e-4, 5e-4, 6e-4,
+                                                                        7e-4, 8e-4, 9e-4,
+                                                                        1e-3])  
+    a = trial.suggest_categorical("a", [2, 4, 6, 8, 10])
+    b = trial.suggest_categorical("b", [1.25, 1.5, 1.75, 2.0, 2.25, 2.5])
     config['c_lr'][app_type][app_sub_type] = config["a_lr"][app_type][app_sub_type] * b
+    config["sprinters_decay_factor"][app_type][app_sub_type] = 1 - config["a_lr"][app_type][app_sub_type] * a
     # Update the parameters in the config
 
     with open(config_file_name, 'w') as f:
         f.write(format(config))
 
-    subprocess.run(['python3', '/Users/jingyiwu/Desktop/Project/MARL/src/multiprocessing_MARL.py', str(app_type_id), str(app_type_sub_id), str(policy_id)], check=True)
-    result = subprocess.run(['python3', '/Users/jingyiwu/Desktop/Project/MARL/src/plot_images.py', str(app_type_id), str(app_type_sub_id), str(policy_id)], 
+    subprocess.run(['python3', '/Users/jingyiwu/Documents/Project/MARL/src/multiprocessing_MARL.py'], check=True)
+    result = subprocess.run(['python3', '/Users/jingyiwu/Documents/Project/MARL/src/plot_images.py'], 
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     # Extract the average reward from the output
     for line in result.stdout.decode().split('\n'):
@@ -69,25 +73,25 @@ def objective(trial, config_file_name, app_type_id, app_type_sub_id, policy_id):
 
 # Load the existing configuration file
 
-config_file_name = '/Users/jingyiwu/Desktop/Project/MARL/configs/config.json'
+config_file_name = '/Users/jingyiwu/Documents/Project/MARL/configs/config.json'
 with open(config_file_name, 'r') as f:
     config = json.load(f)
 
+app_type_id = 0
+app_type_sub_id = 0
 policy_id = 0
-app_type_sub_ids = [1, 3, 2]
-for app_type_id in range(0, 3):
-    for app_type_sub_id in range(0, app_type_sub_ids[app_type_id]):
-        app_type = config["app_types"][app_type_id]
-        app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
-        policy_type = config["policy_types"][policy_id]
-        study = optuna.create_study(direction='maximize')
-        study.optimize(lambda trial: objective(trial, config_file_name, app_type_id, app_type_sub_id, policy_id), n_trials=25)
-        print(study.best_params)
-        # Get the best parameters
-        best_params = study.best_params
-        # Update the parameters in the config
-        config["a_lr"][app_type][app_sub_type] = best_params["a_lr"]
-        config['c_lr'][app_type][app_sub_type] = best_params["a_lr"] * best_params["b"]
+app_type = config["app_types"][app_type_id]
+app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
+policy_type = config["policy_types"][policy_id]
+study = optuna.create_study(direction='maximize')
+study.optimize(lambda trial: objective(trial, config_file_name, app_type_id, app_type_sub_id), n_trials=30)
+print(study.best_params)
+# Get the best parameters
+best_params = study.best_params
+# Update the parameters in the config
+config["a_lr"][app_type][app_sub_type] = best_params["a_lr"]
+config['c_lr'][app_type][app_sub_type] = best_params["a_lr"] * best_params["b"]
+config['sprinters_decay_factor'][app_type][app_sub_type] = 1 - best_params["a_lr"] * best_params["a"]
 
-        with open("/Users/jingyiwu/Desktop/Project/MARL/configs/config.json", 'w') as f:
-            f.write(format(config))
+with open("/Users/jingyiwu/Documents/Project/MARL/configs/config.json", 'w') as f:
+    f.write(format(config))

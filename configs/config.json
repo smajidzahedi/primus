@@ -7,62 +7,62 @@
     },
     "normalization_factor": {
         "uniform": {
-            "u1": 0.1
+            "u1": 0.009
         },
         "markov": {
             "m1": 0.01,
-            "m2": 0.01,
-            "m3": 0.01
+            "m2": 0.1,
+            "m3": 0.1
         },
         "queue": {
             "q1": 0.05,
             "q2": 0.01,
-            "q3": 0.01
+            "q3": 0.05
         }
     },
     "a_lr": {
         "uniform": {
-            "u1": 0.001
+            "u1": 0.0009
         },
         "markov": {
-            "m1": 0.001,
+            "m1": 0.0008,
             "m2": 0.001,
-            "m3": 0.001
+            "m3": 0.0006
         },
         "queue": {
             "q1": 0.0001,
-            "q2": 0.001,
-            "q3": 0.001
+            "q2": 0.0001,
+            "q3": 0.0001
         }
     },
     "c_lr": {
         "uniform": {
-            "u1": 0.002
+            "u1": 0.0018
         },
         "markov": {
-            "m1": 0.002,
+            "m1": 0.0016,
             "m2": 0.002,
-            "m3": 0.002
+            "m3": 0.0009
         },
         "queue": {
-            "q1": 0.0002,
-            "q2": 0.002,
-            "q3": 0.002
+            "q1": 0.000225,
+            "q2": 0.000225,
+            "q3": 0.0002
         }
     },
     "sprinters_decay_factor": {
         "uniform": {
-            "u1": 0.99
+            "u1": 0.9928
         },
         "markov": {
-            "m1": 0.99,
-            "m2": 0.99,
-            "m3": 0.99
+            "m1": 0.9984,
+            "m2": 0.992,
+            "m3": 0.9952
         },
         "queue": {
-            "q1": 0.995,
-            "q2": 0.99,
-            "q3": 0.99
+            "q1": 0.9998,
+            "q2": 0.9998,
+            "q3": 0.999
         }
     },
     "threshold": {
@@ -75,9 +75,9 @@
             "m3": 0.3
         },
         "queue": {
-            "q1": 0.03,
-            "q2": 0.01,
-            "q3": 0.01
+            "q1": 0.2,
+            "q2": 0.2,
+            "q3": 0.2
         }
     },
     "app_states": ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"],
@@ -137,28 +137,28 @@
     },
     "queue_app_max_queue_length": {
         "q1": 50,
-        "q2": 200,
-        "q3": 200
+        "q2": 50,
+        "q3": 30
     },
     "policy_types": ["ac_policy", "thr_policy"],
     "ac_policy_config": {
         "a_h1_size": 256,
         "c_h1_size": 256,
-        "discount_factor": 0.99
+        "discount_factor": 0.9999
     },
-    "folder_name": "/Users/smzahedi/Desktop/Project/data",
+    "folder_name": "/Users/jingyiwu/Documents/Project/data",
     "num_workers": 10,
-    "num_servers": 100,
+    "num_servers": 1000,
     "servers_config": {
         "cooling_prob": 0.5
     },
     "coordinator_config": {
         "global_cost": 1,
         "local_cost": 1,
-        "total_iterations":  5000,
+        "total_iterations": 5000,
         "min_frac": 0.25,
         "max_frac": 0.75,
-        "add_noise": 0,
+        "add_noise": 1,
         "c_epsilon": 1.5,
         "c_delta": 100
     }

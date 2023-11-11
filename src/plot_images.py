@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import json
-import argparse
 
 
 def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
@@ -69,7 +68,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
                 y.append(avg_length / (1 - decay_factor ** itr))
                 itr += 1
             plt.plot(x, y, label=f'Server {server_id}')
-        x_ticks = list(range(0, total_iter, 10000))
+        x_ticks = list(range(0, total_iter, 500))
         x_tick_labels = [str(tick) for tick in x_ticks]  # Convert tick values to strings
         plt.xticks(x_ticks, x_tick_labels, rotation=45)
         plt.legend(ncol=2, bbox_to_anchor=(1, 1))
@@ -84,13 +83,8 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description="Run plot with specified parameters.")
-    # parser.add_argument("app_type_id", type=int, help="App type ID.")
-    # parser.add_argument("app_type_sub_id", type=int, help="App type sub ID.")
-    # parser.add_argument("policy_id", type=int, help="Policy ID.")
-    # args = parser.parse_args()
 
-    config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
+    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
     
-    avg_reward = main(config_file, 2, 0, 1)
+    avg_reward = main(config_file, 0, 0, 0)
     print(f"Average reward: {avg_reward}")
