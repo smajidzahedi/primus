@@ -144,7 +144,8 @@
     "ac_policy_config": {
         "a_h1_size": 256,
         "c_h1_size": 256,
-        "discount_factor": 0.9999
+        "discount_factor": 0.9999,
+        "mini_batch_size": 5
     },
     "folder_name": "/Users/jingyiwu/Documents/Project/data",
     "num_workers": 10,

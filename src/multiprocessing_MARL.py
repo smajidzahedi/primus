@@ -207,7 +207,8 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             a_h1_size = config["ac_policy_config"]["a_h1_size"]
             c_h1_size = config["ac_policy_config"]["c_h1_size"]
             df = config["ac_policy_config"]["discount_factor"]
-            policy = policies.ACPolicy(1, 3, a_h1_size, c_h1_size, a_lr, c_lr, df)
+            mini_batch_size = config["ac_policy_config"]["mini_batch_size"]
+            policy = policies.ACPolicy(1, 3, a_h1_size, c_h1_size, a_lr, c_lr, df, mini_batch_size)
             normalization_factor = config["normalization_factor"][app_type][app_sub_type]
             server = servers.ACServer(i, policy, app, servers_config, normalization_factor)
         elif policy_type == "thr_policy":

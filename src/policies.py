@@ -58,34 +58,81 @@ class Policy:
 
 
 class ACPolicy(Policy):
-    def __init__(self, a_input_size, c_input_size, a_h1_size, c_h1_size, a_lr, c_lr, df):
+    def __init__(self, a_input_size, c_input_size, a_h1_size, c_h1_size, a_lr, c_lr, df, mini_batch_size=1):
         self.actor = Actor(a_input_size, a_h1_size, a_lr)
         self.critic = Critic(c_input_size, c_h1_size, c_lr)
         self.log_prob = None
         self.discount_factor = df
         self.state_value = torch.tensor([0.0], requires_grad=True)
+        self.c_values = []
+        self.a_values = []
+        self.rewards = []
+        self.log_probs = []
+        self.masks = []
+        self.iteration = 0
+        self.mini_batch_size = mini_batch_size
 
     def get_new_action(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32)
         action, self.log_prob = self.actor(state_tensor)
         return action.item()
 
+    def compute_returns(self, next_state_value):
+        r = next_state_value
+        c_returns = []
+        a_returns = []
+        for step in reversed(range(len(self.rewards))):
+            r = self.rewards[step] + self.discount_factor * r
+            c_returns.insert(0, r)
+            if self.masks[step]:
+                a_returns.insert(0, r)
+        return c_returns, a_returns
+
     def update_policy(self, next_state, reward, update_actor):
-        next_state_tensor = torch.tensor(next_state, dtype=torch.float32)
-        next_state_value = self.critic(next_state_tensor)
-        estimate = reward + self.discount_factor * next_state_value.detach()
-        advantage = estimate - self.state_value
+        self.c_values.append(self.state_value)
+        self.rewards.append(reward)
+        self.masks.append(update_actor)
 
         if update_actor:
-            actor_loss = - self.log_prob * advantage.detach()
-            self.actor.optimizer.zero_grad()
-            actor_loss.backward()
-            self.actor.optimizer.step()
+            self.log_probs.append(self.log_prob)
+            self.a_values.append(self.state_value)
 
-        critic_loss = advantage.pow(2).mean()
-        self.critic.optimizer.zero_grad()
-        critic_loss.backward()
-        self.critic.optimizer.step()
+        next_state_tensor = torch.tensor(next_state, dtype=torch.float32)
+        self.iteration += 1
+
+        if self.iteration == self.mini_batch_size:
+            next_state_value = self.critic(next_state_tensor)
+            c_returns, a_returns = self.compute_returns(next_state_value)
+
+            if len(self.a_values) > 0:
+                a_returns = torch.cat(a_returns).detach()
+                a_values = torch.cat(self.a_values)
+                a_advantage = a_returns - a_values
+
+                log_probs = torch.cat(self.log_probs)
+
+                actor_loss = -(log_probs * a_advantage.detach()).mean()
+
+                self.actor.optimizer.zero_grad()
+                actor_loss.backward()
+                self.actor.optimizer.step()
+
+            c_returns = torch.cat(c_returns).detach()
+            c_values = torch.cat(self.c_values)
+            c_advantage = c_returns - c_values
+
+            critic_loss = c_advantage.pow(2).mean()
+
+            self.critic.optimizer.zero_grad()
+            critic_loss.backward()
+            self.critic.optimizer.step()
+
+            self.rewards = []
+            self.c_values = []
+            self.a_values = []
+            self.log_probs = []
+            self.masks = []
+            self.iteration = 0
 
         self.state_value = self.critic(next_state_tensor)
 
