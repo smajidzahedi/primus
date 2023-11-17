@@ -19,8 +19,8 @@ class Server:
 
         self.reward_history = []
 
-    def get_action_delta_utility(self, threshold):
-        if self.server_state == 0 and self.app.get_delta_utility() >= threshold:
+    def get_action_utility(self, threshold):
+        if self.server_state == 0 and self.app.get_current_state() >= threshold:
             return 0, self.app.get_sprinting_utility()
         else:
             return 1, self.app.get_nominal_utility()
@@ -71,7 +71,7 @@ class ACServer(Server):
     # Update Actor and Critic networks' parameters
     def update_policy(self):
         new_state = self.normalization_factor * np.array([self.server_state,
-                                                          self.app.get_delta_utility(),
+                                                          self.app.get_current_state(),
                                                           self.frac_sprinters])
         self.policy.update_policy(new_state, self.reward, self.update_actor)
 
@@ -82,7 +82,7 @@ class ACServer(Server):
         if self.update_actor:
             state = self.normalization_factor * np.array([self.frac_sprinters])
             threshold = self.policy.get_new_action(state)
-        self.action, self.reward = self.get_action_delta_utility(threshold)
+        self.action, self.reward = self.get_action_utility(threshold)
 
 
 #  Server with threshold policy.
@@ -97,4 +97,4 @@ class ThrServer(Server):
     # Get sprinting probability from Thr_Policy, and choose sprint or not by this probability, and get immediate reward
     def take_action(self):
         action = self.policy.get_new_action(0)
-        self.action, self.reward = self.get_action_delta_utility(action)
+        self.action, self.reward = self.get_action_utility(action)
