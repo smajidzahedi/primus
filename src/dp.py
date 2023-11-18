@@ -140,7 +140,7 @@ class Queue(App):
         return self.tran_prob
 
 
-def run_dp(config_file_name, app_type_id, app_sub_type_id, error_1):
+def run_dp(config_file_name, app_type_id, app_sub_type_id):
     with open(config_file_name, 'r') as f:
         config = json.load(f)
 
@@ -150,6 +150,8 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id, error_1):
     prob_cooling = config["servers_config"]["cooling_prob"]
     app_type = config["app_types"][app_type_id]
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
+    error_1 = config["dp_error"][app_type][app_sub_type]
+    print(error_1)
 
     app_utilities = config["app_utilities"]
 
@@ -239,7 +241,8 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id, error_1):
 
 if __name__ == "__main__":
     config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-    run_dp(config_file, 1, 3, 0.05)
+    run_dp(config_file, 1, 2)
+
 
 
 # 0.14305699999318058

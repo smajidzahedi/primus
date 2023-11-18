@@ -216,6 +216,12 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
                 threshold = config["threshold"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
             server = servers.ThrServer(i, policy, app, servers_config)
+        elif policy_type == "dp_policy":
+            threshold = threshold_in
+            if threshold == -1:
+                threshold = config["dp_threshold"][app_type][app_sub_type]
+            policy = policies.ThrPolicy(threshold)
+            server = servers.ThrServer(i, policy, app, servers_config)
         else:
             sys.exit("Wrong policy type!")
 
