@@ -1,8 +1,6 @@
-import numpy as np
 import torch
 from torch import nn, optim
 from torch.distributions import Normal
-import torch.nn.functional as fun
 
 
 class Critic(nn.Module):
@@ -28,7 +26,7 @@ class Actor(nn.Module):
     def __init__(self, input_size, h1_size, lr):
         super().__init__()
         # Initialize Actor network
-        a_l1_size = input_size ** 2 + input_size
+        a_l1_size = 2 * input_size
         self.actor_layer1 = nn.Linear(a_l1_size, h1_size)
         self.actor_layer2_mean = nn.Linear(h1_size, 1)
         self.actor_layer2_std = nn.Linear(h1_size, 1)

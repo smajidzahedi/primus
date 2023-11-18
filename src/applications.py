@@ -35,25 +35,22 @@ State transition follows Markov process
 
 
 class MarkovApp(App):
-    def __init__(self, app_states, transition_matrix, utilities, initial_state):
+    def __init__(self, transition_matrix, utilities, initial_state):
         super().__init__()
-        self.app_states = app_states
         self.transition_matrix = transition_matrix
         self.utilities = utilities
         self.current_state = initial_state
 
     def get_sprinting_utility(self):
-        index = self.app_states.index(self.current_state)
-        return self.utilities[index]
+        return self.current_state
 
     def get_nominal_utility(self):
         return 0
 
     def update_state(self, action):
         super().update_state(action)
-        index = self.app_states.index(self.current_state)
-        probabilities = self.transition_matrix[index]
-        self.current_state = np.random.choice(self.app_states, p=probabilities)
+        probabilities = self.transition_matrix[self.utilities.index(self.current_state)]
+        self.current_state = np.random.choice(self.utilities, p=probabilities)
 
 """
 State transition follows Uniform distribution
@@ -61,22 +58,20 @@ State transition follows Uniform distribution
 
 
 class UniformApp(App):
-    def __init__(self, app_states, utilities):
+    def __init__(self, utilities):
         super().__init__()
-        self.app_states = app_states
         self.utilities = utilities
-        self.current_state = np.random.choice(self.app_states)
+        self.current_state = np.random.choice(self.utilities)
 
     def get_sprinting_utility(self):
-        index = self.app_states.index(self.current_state)
-        return self.utilities[index]
+        return self.current_state
 
     def get_nominal_utility(self):
         return 0
 
     def update_state(self, action):
         super().update_state(action)
-        self.current_state = np.random.choice(self.app_states)
+        self.current_state = np.random.choice(self.utilities)
 
 
 """

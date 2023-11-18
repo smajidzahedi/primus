@@ -2,13 +2,12 @@ import json
 import sys
 
 import numpy as np
-from scipy.stats import poisson
+from scipy.stats import skellam
 
 
 server_state = np.array([0, 1])
 server_state_len = 2
-error_1 = 0.0001
-error_2 = 5
+error = 0.0001
 
 
 def cost(fs, min_frac, max_frac):
@@ -37,7 +36,7 @@ class App:
         p = np.ones(dim) / (server_state_len * self.get_app_state_len())
         difference = 1
         trans = self.get_tran_prob()
-        while difference > error_1:
+        while difference > error:
             new_p = np.zeros(dim)
 
             for s2 in range(self.get_app_state_len()):
@@ -48,12 +47,9 @@ class App:
                     new_p[1][s2] += p[0][s1] * (1 - action[s1]) * trans[s2][s1][int(action[s1])]
                     new_p[1][s2] += p[1][s1] * prob_cooling * trans[s2][s1][1]
 
-            # assert np.abs(new_p.sum() - 1) < 0.00000000001
             difference = ((p - new_p) ** 2).sum()
-            # print("app_state", difference)
             p = new_p.copy()
 
-        # print("sum p", p.sum())
         return p
 
 
@@ -111,18 +107,23 @@ class Queue(App):
         dim = (self.app_state_len, self.app_state_len, 2)
         self.tran_prob = np.zeros(dim)
         for i in range(self.app_state_len):
-            print(i)
-            for arrival in range(2 * arrival_tps):
-                for departure in range(2 * nominal_tps):
-                    probability_ns = poisson.pmf(arrival, arrival_tps) * poisson.pmf(departure, nominal_tps)
-                    j = min(max_queue_length - 1, max(0, i + arrival - departure))
-                    self.tran_prob[j][i][1] += probability_ns
-                for departure in range(2 * sprinting_tps):
-                    probability_s = poisson.pmf(arrival, arrival_tps) * poisson.pmf(departure, sprinting_tps)
-                    j = min(max_queue_length - 1, max(0, i + arrival - departure))
-                    self.tran_prob[j][i][0] += probability_s
+            for j in range(self.app_state_len):
+                probability_s = skellam.pmf(j - i, arrival_tps, sprinting_tps)
+                probability_ns = skellam.pmf(j - i, arrival_tps, nominal_tps)
+                self.tran_prob[j][i][0] += probability_s
+                self.tran_prob[j][i][1] += probability_ns
 
-        print(self.tran_prob.sum(axis=0))
+            probability_e_s = skellam.cdf(- i - 1, arrival_tps, sprinting_tps)
+            probability_e_ns = skellam.cdf(- i - 1, arrival_tps, nominal_tps)
+            self.tran_prob[0][i][0] += probability_e_s
+            self.tran_prob[0][i][1] += probability_e_ns
+
+            probability_f_s = skellam.sf(self.app_state_len - i - 1, arrival_tps, sprinting_tps)
+            probability_f_ns = skellam.sf(self.app_state_len - i - 1, arrival_tps, nominal_tps)
+            self.tran_prob[-1][i][0] += probability_f_s
+            self.tran_prob[-1][i][1] += probability_f_ns
+
+        # print(self.tran_prob.sum(axis=0))
 
     def get_app_state_len(self):
         return self.app_state_len
@@ -139,7 +140,7 @@ class Queue(App):
         return self.tran_prob
 
 
-def run_dp(config_file_name, app_type_id, app_sub_type_id):
+def run_dp(config_file_name, app_type_id, app_sub_type_id, error_1):
     with open(config_file_name, 'r') as f:
         config = json.load(f)
 
@@ -161,8 +162,8 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
         arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
         sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
         nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
-        max_queue_length = config["queue_app_max_queue_length"][app_sub_type]
-        app = Queue(arrival_tps, sprinting_tps, nominal_tps, max_queue_length)
+        app = Queue(arrival_tps, sprinting_tps, nominal_tps, 20)
+        # sys.exit()
     else:
         sys.exit("App model is not supported")
 
@@ -180,7 +181,7 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 
     itr = 0
     diff = 10
-    while diff > error_2:
+    while diff > error_1:
         itr += 1
         total_cost = cost(frac_sprinters, min_frac, max_frac)
 
@@ -238,7 +239,7 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 
 if __name__ == "__main__":
     config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-    run_dp(config_file, 2, 2)
+    run_dp(config_file, 1, 3, 0.05)
 
 
 # 0.14305699999318058

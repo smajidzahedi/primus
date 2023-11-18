@@ -169,7 +169,6 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     assert app_sub_type_id < len(config["app_sub_types"][app_type])
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
     policy_type = config["policy_types"][policy_id]
-    app_states = config["app_states"]
     app_utilities = config["app_utilities"]
 
     path = f"{folder_name}/{num_servers}_server/{policy_type}/{app_type}_{app_sub_type}"
@@ -189,9 +188,9 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     for i in range(num_servers):
         if app_type == "markov":
             transition_matrix = config["markov_app_transition_matrices"][app_sub_type]
-            app = applications.MarkovApp(app_states, transition_matrix, app_utilities, np.random.choice(app_states))
+            app = applications.MarkovApp(transition_matrix, app_utilities, np.random.choice(app_utilities))
         elif app_type == "uniform":
-            app = applications.UniformApp(app_states, app_utilities)
+            app = applications.UniformApp(app_utilities)
         elif app_type == "queue":
             arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
             sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
