@@ -103,5 +103,5 @@ class QueueApp(App):
         departed_tasks = np.random.poisson(self.nominal_tps)
         if action == 0:
             departed_tasks = np.random.poisson(self.sprinting_tps)
-        self.current_queue_length = max(0, self.current_state + arrived_tasks - departed_tasks)
+        self.current_queue_length = max(0, self.current_queue_length + arrived_tasks - departed_tasks)
         self.current_state = min(1.0, self.current_queue_length / self.max_queue_length)
