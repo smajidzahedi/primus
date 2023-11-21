@@ -13,9 +13,6 @@ class App:
     def get_nominal_utility(self):
         raise NotImplementedError("This method should be overridden.")
 
-    def get_delta_utility(self):
-        return self.get_sprinting_utility() - self.get_nominal_utility()
-
     def get_current_state(self):
         return float(self.current_state)
 
@@ -88,20 +85,27 @@ class QueueApp(App):
         self.sprinting_tps = sprinting_tps
         self.nominal_tps = nominal_tps
         self.max_queue_length = max_queue_length
+        self.next_departure_not_sprinting = nominal_tps
+        self.next_departure_sprinting = sprinting_tps
+        self.next_arrival = arrival_tps
 
     def get_sprinting_utility(self):
-        new_queue_length = max(0, self.current_queue_length + self.arrival_tps - self.sprinting_tps)
-        return -min(new_queue_length, self.max_queue_length) / self.max_queue_length
+        new_queue_length = max(0, self.current_queue_length + self.next_arrival - self.next_departure_sprinting)
+        return -min(new_queue_length, self.max_queue_length)
 
     def get_nominal_utility(self):
-        new_queue_length = max(0, self.current_queue_length + self.arrival_tps - self.nominal_tps)
-        return -min(new_queue_length, self.max_queue_length) / self.max_queue_length
+        new_queue_length = max(0, self.current_queue_length + self.next_arrival - self.next_departure_not_sprinting)
+        return -min(new_queue_length, self.max_queue_length)
 
     def update_state(self, action):
         super().update_state(action)
-        arrived_tasks = np.random.poisson(self.arrival_tps)
-        departed_tasks = np.random.poisson(self.nominal_tps)
+        arrived_tasks = self.next_arrival
+        departed_tasks = self.next_departure_not_sprinting
         if action == 0:
-            departed_tasks = np.random.poisson(self.sprinting_tps)
+            departed_tasks = self.next_departure_sprinting
         self.current_queue_length = max(0, self.current_queue_length + arrived_tasks - departed_tasks)
-        self.current_state = min(1.0, self.current_queue_length / self.max_queue_length)
+        self.current_state = min(self.current_queue_length, self.max_queue_length)
+        self.next_arrival = np.random.poisson(self.arrival_tps)
+        self.next_departure_not_sprinting = np.random.poisson(self.nominal_tps)
+        self.next_departure_sprinting = np.random.poisson(self.sprinting_tps)
+

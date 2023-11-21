@@ -170,6 +170,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
     policy_type = config["policy_types"][policy_id]
     app_utilities = config["app_utilities"]
+    utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
 
     path = f"{folder_name}/{num_servers}_server/{policy_type}/{app_type}_{app_sub_type}"
     if not os.path.exists(path):
@@ -208,20 +209,21 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             df = config["ac_policy_config"]["discount_factor"]
             mini_batch_size = config["ac_policy_config"]["mini_batch_size"]
             policy = policies.ACPolicy(1, 3, a_h1_size, c_h1_size, a_lr, c_lr, df, mini_batch_size)
-            normalization_factor = config["normalization_factor"][app_type][app_sub_type]
-            server = servers.ACServer(i, policy, app, servers_config, normalization_factor)
+            state_normalization_factor = config["state_normalization_factor"][app_type][app_sub_type]
+            server = servers.ACServer(i, policy, app, servers_config,
+                                      state_normalization_factor, utility_normalization_factor)
         elif policy_type == "thr_policy":
             threshold = threshold_in
             if threshold == -1:
                 threshold = config["threshold"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
-            server = servers.ThrServer(i, policy, app, servers_config)
+            server = servers.ThrServer(i, policy, app, servers_config, utility_normalization_factor)
         elif policy_type == "dp_policy":
             threshold = threshold_in
             if threshold == -1:
                 threshold = config["dp_threshold"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
-            server = servers.ThrServer(i, policy, app, servers_config)
+            server = servers.ThrServer(i, policy, app, servers_config, utility_normalization_factor)
         else:
             sys.exit("Wrong policy type!")
 

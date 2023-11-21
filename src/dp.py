@@ -25,9 +25,6 @@ class App:
     def get_nominal_utility(self, index) -> float:
         pass
 
-    def get_delta_utility(self, index) -> float:
-        return self.get_sprinting_utility(index) - self.get_nominal_utility(index)
-
     def get_tran_prob(self) -> np.ndarray:
         pass
 
@@ -98,12 +95,13 @@ class Markov(App):
 
 
 class Queue(App):
-    def __init__(self, arrival_tps, sprinting_tps, nominal_tps, max_queue_length):
+    def __init__(self, arrival_tps, sprinting_tps, nominal_tps, max_queue_length, utility_normalization_factor):
         self.app_state = np.arange(max_queue_length)
         self.app_state_len = max_queue_length
         self.arrival_tps = arrival_tps
         self.nominal_tps = nominal_tps
         self.sprinting_tps = sprinting_tps
+        self.utility_normalization_factor = utility_normalization_factor
         dim = (self.app_state_len, self.app_state_len, 2)
         self.tran_prob = np.zeros(dim)
         for i in range(self.app_state_len):
@@ -130,11 +128,11 @@ class Queue(App):
 
     def get_sprinting_utility(self, index):
         new_queue_length = max(0, self.app_state[index] + self.arrival_tps - self.sprinting_tps)
-        return - min(new_queue_length, self.app_state_len - 1)
+        return - self.utility_normalization_factor * min(new_queue_length, self.app_state_len - 1)
 
     def get_nominal_utility(self, index):
         new_queue_length = max(0, self.app_state[index] + self.arrival_tps - self.nominal_tps)
-        return - min(new_queue_length, self.app_state_len - 1)
+        return - self.utility_normalization_factor * min(new_queue_length, self.app_state_len - 1)
 
     def get_tran_prob(self):
         return self.tran_prob
@@ -164,7 +162,8 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
         arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
         sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
         nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
-        app = Queue(arrival_tps, sprinting_tps, nominal_tps, 20)
+        utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
+        app = Queue(arrival_tps, sprinting_tps, nominal_tps, 20, utility_normalization_factor)
         # sys.exit()
     else:
         sys.exit("App model is not supported")
@@ -173,7 +172,6 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     app_state_len = app.get_app_state_len()
     dim = (server_state_len, app_state_len)
     v = np.random.rand(server_state_len, app_state_len)
-    # v[0] = np.ones(app_state_len) * 100
     new_v = np.zeros(dim)
     actions = np.ones(app_state_len)
     q_s = np.zeros(app_state_len)

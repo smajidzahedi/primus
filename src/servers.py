@@ -3,12 +3,13 @@ import numpy as np
 
 
 class Server:
-    def __init__(self, server_id, policy, app, server_config):
+    def __init__(self, server_id, policy, app, server_config, utility_normalization_factor):
         self.server_id = server_id
 
         self.server_state = 0       # initial state: Active
         self.action = 1             # initial action: Not sprint
         self.reward = 0             # initial reward: Zero
+        self.utility_normalization_factor = utility_normalization_factor
 
         self.frac_sprinters = 0
 
@@ -63,16 +64,16 @@ class Server:
 
 # Server with Actor-Critic policy
 class ACServer(Server):
-    def __init__(self, server_id, policy, app, server_config, normalization_factor):
-        super().__init__(server_id, policy, app, server_config)
-        self.normalization_factor = normalization_factor
+    def __init__(self, server_id, policy, app, server_config, state_normalization_factor, utility_normalization_factor):
+        super().__init__(server_id, policy, app, server_config, utility_normalization_factor)
+        self.state_normalization_factor = state_normalization_factor
         self.update_actor = 0
 
     # Update Actor and Critic networks' parameters
     def update_policy(self):
-        new_state = self.normalization_factor * np.array([self.server_state,
-                                                          self.app.get_current_state(),
-                                                          self.frac_sprinters])
+        new_state = self.state_normalization_factor * np.array([self.server_state,
+                                                                self.app.get_current_state(),
+                                                                self.frac_sprinters])
         self.policy.update_policy(new_state, self.reward, self.update_actor)
 
     # get threshold value and state value from AC_Policy network, choose sprint or not and get immediate reward
@@ -80,16 +81,17 @@ class ACServer(Server):
         self.update_actor = 1 - self.server_state
         threshold = 1
         if self.update_actor:
-            state = self.normalization_factor * np.array([self.frac_sprinters])
+            state = self.state_normalization_factor * np.array([self.frac_sprinters])
             threshold = self.policy.get_new_action(state)
         self.action, self.reward = self.get_action_utility(threshold)
+        self.reward *= self.utility_normalization_factor
 
 
 #  Server with threshold policy.
 #  It is a fixed policy, so it doesn't need update policy
 class ThrServer(Server):
-    def __init__(self, server_id, policy, app, server_config):
-        super().__init__(server_id, policy, app, server_config)
+    def __init__(self, server_id, policy, app, server_config, utility_normalization_factor):
+        super().__init__(server_id, policy, app, server_config, utility_normalization_factor)
 
     def update_policy(self):
         return
@@ -98,3 +100,5 @@ class ThrServer(Server):
     def take_action(self):
         action = self.policy.get_new_action(0)
         self.action, self.reward = self.get_action_utility(action)
+        self.reward *= self.utility_normalization_factor
+
