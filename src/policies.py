@@ -23,7 +23,7 @@ class Critic(nn.Module):
 
 
 class Actor(nn.Module):
-    def __init__(self, input_size, h1_size, lr):
+    def __init__(self, input_size, h1_size, lr, std_max):
         super().__init__()
         # Initialize Actor network
         a_l1_size = 2 * input_size
@@ -31,6 +31,7 @@ class Actor(nn.Module):
         self.actor_layer2_mean = nn.Linear(h1_size, 1)
         self.actor_layer2_std = nn.Linear(h1_size, 1)
         self.optimizer = optim.AdamW(self.parameters(), lr=lr)
+        self.std_max = std_max
 
     def forward(self, x):
         x2 = x ** 2
@@ -38,7 +39,7 @@ class Actor(nn.Module):
         x = torch.relu(self.actor_layer1(x))
         mean = self.actor_layer2_mean(x)
         std = torch.exp(self.actor_layer2_std(x))
-        std = torch.clamp(std, min=0, max=0.01)
+        std = torch.clamp(std, min=0, max=self.std_max)
         dist = Normal(loc=mean, scale=std)
         u = dist.sample()
         # a = torch.tanh(u)
@@ -56,8 +57,8 @@ class Policy:
 
 
 class ACPolicy(Policy):
-    def __init__(self, a_input_size, c_input_size, a_h1_size, c_h1_size, a_lr, c_lr, df, mini_batch_size=1):
-        self.actor = Actor(a_input_size, a_h1_size, a_lr)
+    def __init__(self, a_input_size, c_input_size, a_h1_size, c_h1_size, a_lr, c_lr, df, std_max, mini_batch_size=1):
+        self.actor = Actor(a_input_size, a_h1_size, a_lr, std_max)
         self.critic = Critic(c_input_size, c_h1_size, c_lr)
         self.log_prob = None
         self.discount_factor = df

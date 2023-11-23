@@ -86,5 +86,6 @@ if __name__ == "__main__":
 
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
     
-    avg_reward = main(config_file, 0, 0, 0)
+    avg_reward = main(config_file, 2, 3, 0)
     print(f"Average reward: {avg_reward}")
+

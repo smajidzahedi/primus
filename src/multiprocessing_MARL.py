@@ -170,7 +170,13 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
     policy_type = config["policy_types"][policy_id]
     app_utilities = config["app_utilities"]
-    utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
+    add_noise = coordinator_config["add_noise"]
+    if add_noise:
+        utility_normalization_factor = config["utility_normalization_factor_noise"][app_type][app_sub_type]
+        sprinters_decay_factor = config["sprinters_decay_factor_noise"][app_type][app_sub_type]
+    else:
+        utility_normalization_factor = config["utility_normalization_factor_no_noise"][app_type][app_sub_type]
+        sprinters_decay_factor = config["sprinters_decay_factor_no_noise"][app_type][app_sub_type]
 
     path = f"{folder_name}/{num_servers}_server/{policy_type}/{app_type}_{app_sub_type}"
     if not os.path.exists(path):
@@ -182,7 +188,6 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     servers_list = []
     worker_processors = []
 
-    sprinters_decay_factor = config["sprinters_decay_factor"][app_type][app_sub_type]
     coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers,
                               sprinters_decay_factor)
 
@@ -202,20 +207,29 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             sys.exit("wrong app type!")
 
         if policy_type == "ac_policy":
-            a_lr = config["a_lr"][app_type][app_sub_type]
-            c_lr = config["c_lr"][app_type][app_sub_type]
+            if add_noise:
+                a_lr = config["a_lr_noise"][app_type][app_sub_type]
+                c_lr = config["c_lr_noise"][app_type][app_sub_type]
+                state_normalization_factor = config["state_normalization_factor_noise"][app_type][app_sub_type]
+            else:
+                a_lr = config["a_lr_no_noise"][app_type][app_sub_type]
+                c_lr = config["c_lr_no_noise"][app_type][app_sub_type]
+                state_normalization_factor = config["state_normalization_factor_no_noise"][app_type][app_sub_type]
             a_h1_size = config["ac_policy_config"]["a_h1_size"]
             c_h1_size = config["ac_policy_config"]["c_h1_size"]
+            std_max = config["std_max"][app_type][app_sub_type]
             df = config["ac_policy_config"]["discount_factor"]
             mini_batch_size = config["ac_policy_config"]["mini_batch_size"]
-            policy = policies.ACPolicy(1, 3, a_h1_size, c_h1_size, a_lr, c_lr, df, mini_batch_size)
-            state_normalization_factor = config["state_normalization_factor"][app_type][app_sub_type]
+            policy = policies.ACPolicy(1, 3, a_h1_size, c_h1_size, a_lr, c_lr, df, std_max, mini_batch_size)
             server = servers.ACServer(i, policy, app, servers_config,
                                       state_normalization_factor, utility_normalization_factor)
         elif policy_type == "thr_policy":
             threshold = threshold_in
             if threshold == -1:
-                threshold = config["threshold"][app_type][app_sub_type]
+                if add_noise:
+                    threshold = config["threshold_noise"][app_type][app_sub_type]
+                else:
+                    threshold = config["threshold_no_noise"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
             server = servers.ThrServer(i, policy, app, servers_config, utility_normalization_factor)
         elif policy_type == "dp_policy":
@@ -251,4 +265,4 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
 
 if __name__ == "__main__":
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
-    main(config_file, 0, 0, 0, -1)
+    main(config_file, 2, 3, 0, -1)

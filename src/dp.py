@@ -149,6 +149,7 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     app_type = config["app_types"][app_type_id]
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
     error_1 = config["dp_error"][app_type][app_sub_type]
+    add_noise = config["coordinator_config"]["add_noise"]
     print(error_1)
 
     app_utilities = config["app_utilities"]
@@ -162,7 +163,10 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
         arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
         sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
         nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
-        utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
+        if add_noise:
+            utility_normalization_factor = config["utility_normalization_factor_noise"][app_type][app_sub_type]
+        else:
+            utility_normalization_factor = config["utility_normalization_factor_no_noise"][app_type][app_sub_type]
         app = Queue(arrival_tps, sprinting_tps, nominal_tps, 20, utility_normalization_factor)
         # sys.exit()
     else:
@@ -238,9 +242,6 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 
 
 if __name__ == "__main__":
-    config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-    run_dp(config_file, 1, 2)
+    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+    run_dp(config_file, 2, 3)
 
-
-
-# 0.14305699999318058
