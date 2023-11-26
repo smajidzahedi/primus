@@ -121,7 +121,7 @@ class ACPolicy(Policy):
             c_advantage = c_returns - c_values
 
             critic_loss = c_advantage.pow(2).mean()
-
+            
             self.critic.optimizer.zero_grad()
             critic_loss.backward()
             self.critic.optimizer.step()

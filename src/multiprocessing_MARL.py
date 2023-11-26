@@ -10,6 +10,8 @@ import applications
 import policies
 import servers
 
+import argparse
+
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -82,7 +84,6 @@ class Coordinator:
             self.frac_sprinters += np.random.normal(loc=0, scale=self.sigma)
 
         self.current_iteration += 1
-
         self.avg_frac_sprinters *= self.sprinters_decay_factor
         self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * self.frac_sprinters
         self.avg_frac_sprinters_corrected = self.avg_frac_sprinters / (
@@ -226,10 +227,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
         elif policy_type == "thr_policy":
             threshold = threshold_in
             if threshold == -1:
-                if add_noise:
-                    threshold = config["threshold_noise"][app_type][app_sub_type]
-                else:
-                    threshold = config["threshold_no_noise"][app_type][app_sub_type]
+                threshold = config["threshold"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
             server = servers.ThrServer(i, policy, app, servers_config, utility_normalization_factor)
         elif policy_type == "dp_policy":
@@ -264,5 +262,13 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     
 
 if __name__ == "__main__":
+    
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+
     main(config_file, 2, 3, 0, -1)
+
+    """parser = argparse.ArgumentParser()
+    parser.add_argument('app_type_id', type=int)
+    parser.add_argument('app_type_sub_id', type=int)
+    args = parser.parse_args()
+    main(config_file, args.app_type_id, args.app_type_sub_id, 0, -1)"""

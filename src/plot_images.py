@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import json
+import argparse
 
 
 def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
@@ -85,7 +86,11 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
 if __name__ == "__main__":
 
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
-    
+    """parser = argparse.ArgumentParser()
+    parser.add_argument('app_type_id', type=int)
+    parser.add_argument('app_type_sub_id', type=int)
+    args = parser.parse_args()
+    avg_reward = main(config_file, args.app_type_id, args.app_type_sub_id, 0)"""
+
     avg_reward = main(config_file, 2, 3, 0)
     print(f"Average reward: {avg_reward}")
-

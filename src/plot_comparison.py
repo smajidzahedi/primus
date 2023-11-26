@@ -4,53 +4,44 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-# Load the configuration file to get game_type and app_type
-with open('/Users/jingyiwu/Desktop/MARL/config.json', 'r') as f:
+config_file_name = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+with open(config_file_name, 'r') as f:
     config = json.load(f)
 
-game_type = config['game_type']
-app_type = config['app_type']
+decay_factor = 0.999
+app_type_id = 2
+app_type_sub_id = 1
+policy_id = 0
+num_servers = config["num_servers"]
 folder_name = config["folder_name"]
 num_servers = config["num_servers"]
-game_type = config["game_type"]
-app_type = config["app_type"]
-location = f"{folder_name}/{num_servers}_server/{app_type}"
+app_type = config["app_types"][app_type_id]
+app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
+policy_type = config["policy_types"][policy_id]
+path = f"{folder_name}/{num_servers}_server/{policy_type}/{app_type}_{app_sub_type}"
+data_server_0 = []
+data_server_1 = []
+data_server_2 = []
 
-# Load data from the files
-avg_rewards = pd.read_csv(f"{location}/{app_type}_different_policy_avg_rewards.txt", sep='\t', header=None, names=['policy', 'average_reward'])
-num_recovery = pd.read_csv(f"{location}/{app_type}_num_recovery.txt", sep='\t', header=None, names=['policy', 'num_recovery'])
+for server_id in [2, 56, 75]:
+    itr = 1
+    avg_length = 0
+    y = []  # Initialize the y-axis
+    file_path = os.path.join(path, f"server_{server_id}_app_states.txt")
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+    for line in lines:
+        avg_length = decay_factor * avg_length + (1 - decay_factor) * float(line.strip())
+        if (itr) % 10 == 0:
+            y.append(avg_length / (1 - decay_factor ** itr))
+        itr += 1
+    if server_id == 2:
+        data_server_0 = y
+    elif server_id == 56:
+        data_server_1 = y
+    elif server_id == 75:
+        data_server_2 = y
 
-# Merge the dataframes on policy
-data = pd.merge(avg_rewards, num_recovery, on='policy', how='outer')
-
-# Set policy as the index
-data.set_index('policy', inplace=True)
-
-fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(25,22))
-
-labels = data.index.values
-width = 0.35
-
-x = np.arange(len(labels))
-
-# Create the bars for 'Average Reward' and add the values at the top
-rects1 = ax1.bar(x, data['average_reward'], width, label='Average Reward', color='b')
-for i, v in enumerate(data['average_reward']):
-    if v >= 0:
-        ax1.text(i, v + 0.01, str(round(v, 6)), ha='center')
-    else:
-        ax1.text(i, v - 0.2, str(round(v, 6)), ha='center')
-ax1.set_ylabel('Average Reward')
-ax1.set_xticks(x)
-ax1.set_xticklabels(labels, rotation=45, ha='right')
-ax1.legend(loc='lower right')
-
-rects2 = ax2.bar(x, data['num_recovery'], width, label='Number of Recovery', color='r')
-for i, v in enumerate(data['num_recovery']):
-    ax2.text(i, v + 1, str(round(v, 6)), ha='center')
-ax2.set_ylabel('Number of Recovery')
-ax2.set_xticks(x)
-ax2.set_xticklabels(labels, rotation=45, ha='right')
-ax2.legend(loc='upper right')
-plt.suptitle('Average Reward and Number of Recovery for Different Policies')
-plt.savefig(os.path.join(location, f'{app_type}_policy_compare.png'))
+with open(os.path.join("/Users/jingyiwu/Documents/Project/MARL_PAPER/asplos24/data", f"q{app_type_sub_id+1}_length_change.txt"), "w") as file:
+    for i in range(len(data_server_0)):  # Assuming all lists have the same length
+        file.write(f"{data_server_0[i]}\t{data_server_1[i]}\t{data_server_2[i]}\n")

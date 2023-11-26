@@ -243,5 +243,5 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 
 if __name__ == "__main__":
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
-    run_dp(config_file, 2, 3)
+    run_dp(config_file, 1, 6)
 

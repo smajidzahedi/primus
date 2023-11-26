@@ -48,6 +48,8 @@ class Server:
         pass
 
     def run_server(self, cost, frac_sprinters, iteration):
+        if iteration == 1000:
+            self.app.arrival_tps *= 1.2
         self.update_state(cost, frac_sprinters)
         self.update_policy()
         self.take_action()
