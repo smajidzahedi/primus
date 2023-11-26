@@ -1,4 +1,6 @@
 import os
+import sys
+
 import numpy as np
 
 
@@ -17,6 +19,9 @@ class Server:
         self.app = app
 
         self.cooling_prob = server_config["cooling_prob"]
+        self.change = server_config["change"]
+        self.change_iteration = server_config["change_iteration"]
+        self.change_type = server_config["change_type"]
 
         self.reward_history = []
 
@@ -48,8 +53,16 @@ class Server:
         pass
 
     def run_server(self, cost, frac_sprinters, iteration):
-        if iteration == 1000:
-            self.app.arrival_tps *= 1.2
+        if self.change == 1 and iteration == self.change_iteration:
+            if self.change_type == 0:
+                self.app.arrival_tps *= 1.25
+            elif self.change_type == 1:
+                self.app.arrival_tps *= 0.8
+            elif self.change_type == 2:
+                self.cooling_prob = 1 - (1 - self.cooling_prob)/2
+            elif self.change_type == 3:
+                self.cooling_prob /= 2
+
         self.update_state(cost, frac_sprinters)
         self.update_policy()
         self.take_action()

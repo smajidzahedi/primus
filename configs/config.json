@@ -407,7 +407,10 @@
     "num_workers": 10,
     "num_servers": 1000,
     "servers_config": {
-        "cooling_prob": 0.5
+        "cooling_prob": 0.5,
+        "change": 1,
+        "change_iteration": 2000,
+        "change_type": 0
     },
     "coordinator_config": {
         "global_cost": 0.1,
