@@ -25,7 +25,7 @@
             "q4": 0.05
         }
     },
-    "utility_normalization_factor_no_noise": {
+    "utility_normalization_factor": {
         "uniform": {
             "u1": 1
         },
@@ -123,26 +123,6 @@
             "q2": 0.03,
             "q3": 0.03,
             "q4": 0.03
-        }
-    },
-    "utility_normalization_factor_noise": {
-        "uniform": {
-            "u1": 1
-        },
-        "markov": {
-            "m1": 1,
-            "m2": 1,
-            "m3": 1,
-            "m4": 1,
-            "m5": 1,
-            "m6": 1,
-            "m7": 1
-        },
-        "queue": {
-            "q1": 0.02,
-            "q2": 0.02,
-            "q3": 0.03,
-            "q4": 0.045
         }
     },
     "a_lr_noise": {

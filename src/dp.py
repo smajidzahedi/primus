@@ -44,7 +44,7 @@ class App:
                     new_p[1][s2] += p[0][s1] * (1 - action[s1]) * trans[s2][s1][int(action[s1])]
                     new_p[1][s2] += p[1][s1] * prob_cooling * trans[s2][s1][1]
 
-            difference = ((p - new_p) ** 2).sum()
+            difference = np.sqrt(((p - new_p) ** 2).sum())
             p = new_p.copy()
 
         return p
@@ -71,9 +71,10 @@ class Uniform(App):
 
 
 class Markov(App):
-    def __init__(self, app_utilities, transition_matrix):
+    def __init__(self, app_utilities, transition_matrix, utility_normalization_factor):
         self.app_state = app_utilities
         self.app_state_len = len(app_utilities)
+        self.utility_normalization_factor = utility_normalization_factor
         dim = (self.app_state_len, self.app_state_len, 2)
         self.tran_prob = np.zeros(dim)
         for i in range(self.app_state_len):
@@ -85,7 +86,7 @@ class Markov(App):
         return self.app_state_len
 
     def get_sprinting_utility(self, index):
-        return self.app_state[index]
+        return self.utility_normalization_factor * self.app_state[index]
 
     def get_nominal_utility(self, index):
         return 0
@@ -149,7 +150,6 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     app_type = config["app_types"][app_type_id]
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
     error_1 = config["dp_error"][app_type][app_sub_type]
-    add_noise = config["coordinator_config"]["add_noise"]
     print(error_1)
 
     app_utilities = config["app_utilities"]
@@ -157,16 +157,14 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     if app_type == "uniform":
         app = Uniform(app_utilities)
     elif app_type == "markov":
+        utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
         transition_matrix = config["markov_app_transition_matrices"][app_sub_type]
-        app = Markov(app_utilities, transition_matrix)
+        app = Markov(app_utilities, transition_matrix, utility_normalization_factor)
     elif app_type == "queue":
         arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
         sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
         nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
-        if add_noise:
-            utility_normalization_factor = config["utility_normalization_factor_noise"][app_type][app_sub_type]
-        else:
-            utility_normalization_factor = config["utility_normalization_factor_no_noise"][app_type][app_sub_type]
+        utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
         app = Queue(arrival_tps, sprinting_tps, nominal_tps, 20, utility_normalization_factor)
         # sys.exit()
     else:
@@ -222,7 +220,7 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
             avg_reward += probs[0][s1] * actions[s1] * app.get_nominal_utility(s1)
             avg_reward += probs[1][s1] * app.get_nominal_utility(s1)
 
-        diff = ((new_v - v) ** 2).sum()
+        diff = np.sqrt(((new_v - v) ** 2).sum())
         if itr % 500 == 0:
             print(itr)
             # print(probs.sum(0))

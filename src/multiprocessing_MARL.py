@@ -172,11 +172,10 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     policy_type = config["policy_types"][policy_id]
     app_utilities = config["app_utilities"]
     add_noise = coordinator_config["add_noise"]
+    utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
     if add_noise:
-        utility_normalization_factor = config["utility_normalization_factor_noise"][app_type][app_sub_type]
         sprinters_decay_factor = config["sprinters_decay_factor_noise"][app_type][app_sub_type]
     else:
-        utility_normalization_factor = config["utility_normalization_factor_no_noise"][app_type][app_sub_type]
         sprinters_decay_factor = config["sprinters_decay_factor_no_noise"][app_type][app_sub_type]
 
     path = f"{folder_name}/{num_servers}_server/{policy_type}/{app_type}_{app_sub_type}"
