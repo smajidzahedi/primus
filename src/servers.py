@@ -25,8 +25,14 @@ class Server:
 
         self.reward_history = []
 
-    def get_action_utility(self, threshold):
+    def get_action_utility_by_threshold(self, threshold):
         if self.server_state == 0 and self.app.get_current_state() >= threshold:
+            return 0, self.app.get_sprinting_utility()
+        else:
+            return 1, self.app.get_nominal_utility()
+
+    def get_action_utility_by_action(self, action):
+        if self.server_state == 0 and action == 0:
             return 0, self.app.get_sprinting_utility()
         else:
             return 1, self.app.get_nominal_utility()
@@ -54,14 +60,7 @@ class Server:
 
     def run_server(self, cost, frac_sprinters, iteration):
         if self.change == 1 and iteration == self.change_iteration:
-            if self.change_type == 0:
-                self.app.arrival_tps *= 1.25
-            elif self.change_type == 1:
-                self.app.arrival_tps *= 0.8
-            elif self.change_type == 2:
-                self.cooling_prob = 1 - (1 - self.cooling_prob)/2
-            elif self.change_type == 3:
-                self.cooling_prob /= 2
+            self.app.apply_change(self.change_type)
 
         self.update_state(cost, frac_sprinters)
         self.update_policy()
@@ -98,8 +97,14 @@ class ACServer(Server):
         if self.update_actor:
             state = self.state_normalization_factor * np.array([self.frac_sprinters])
             threshold = self.policy.get_new_action(state)
-        self.action, self.reward = self.get_action_utility(threshold)
+        self.action, self.reward = self.get_action_utility_by_threshold(threshold)
         self.reward *= self.utility_normalization_factor
+
+    def run_server(self, cost, frac_sprinters, iteration):
+        if self.server_id == 19 and iteration % 2000 == 0:
+            state = np.array([self.frac_sprinters])
+            print(self.policy.printable_action(state))
+        return super().run_server(cost, frac_sprinters, iteration)
 
 
 #  Server with threshold policy.
@@ -114,6 +119,34 @@ class ThrServer(Server):
     # Get sprinting probability from Thr_Policy, and choose sprint or not by this probability, and get immediate reward
     def take_action(self):
         action = self.policy.get_new_action(0)
-        self.action, self.reward = self.get_action_utility(action)
+        self.action, self.reward = self.get_action_utility_by_threshold(action)
         self.reward *= self.utility_normalization_factor
 
+
+class QLServer(Server):
+    def __init__(self, server_id, policy, app, server_config, utility_normalization_factor):
+        super().__init__(server_id, policy, app, server_config, utility_normalization_factor)
+        self.old_state = (self.server_state, self.app.get_current_state_index())
+        self.new_state = None
+
+    def update_state(self, cost, frac_sprinters):
+        self.old_state = (self.server_state, self.app.get_current_state_index())
+        super().update_state(cost, frac_sprinters)
+        self.new_state = (self.server_state, self.app.get_current_state_index())
+
+    def update_policy(self):
+        self.policy.update_policy(self.old_state, self.action, self.reward, self.new_state)
+
+    # get threshold value and state value from AC_Policy network, choose sprint or not and get immediate reward
+    def take_action(self):
+        action = self.policy.get_new_action(self.new_state)
+        self.action, self.reward = self.get_action_utility_by_action(action)
+        self.reward *= self.utility_normalization_factor
+
+    def run_server(self, cost, frac_sprinters, iteration):
+        if self.server_id == 19 and iteration % 2000 == 0:
+            for j in range(0, self.app.get_state_space_len()):
+                state = (0, j)
+                print(self.policy.printable_action(state), end="")
+            print()
+        return super().run_server(cost, frac_sprinters, iteration)

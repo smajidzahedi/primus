@@ -35,8 +35,14 @@ class Coordinator:
         self.sprinters_decay_factor = sprinters_decay_factor  # for fictitious play
         self.avg_frac_sprinters_list = []
 
+        self.itr = 0
+        self.period = coordinator_config["period"]
+        self.fr = 0
+        self.cst = np.zeros(num_servers)
+
         # Iteration parameters
-        self.total_iterations = coordinator_config["total_iterations"]
+        self.total_iterations_dp = coordinator_config["total_iterations"]
+        self.total_iterations = self.total_iterations_dp * self.period
         self.current_iteration = 0  # store total number of active rounds
 
         # Worker and server parameters
@@ -56,7 +62,7 @@ class Coordinator:
         self.c_epsilon = coordinator_config["c_epsilon"]
         self.c_delta = coordinator_config["c_delta"]
         self.epsilon = self.c_epsilon / np.log10(self.num_servers)
-        self.epsilon_prime = self.epsilon / self.total_iterations
+        self.epsilon_prime = self.epsilon / self.total_iterations_dp
         self.delta = self.c_delta / self.num_servers
         self.alpha = 1 + 2 * np.log10(1 / self.delta) / self.epsilon
         self.var = self.alpha / (2 * self.num_servers ** 2 * self.epsilon_prime)
@@ -97,11 +103,13 @@ class Coordinator:
 
         while self.current_iteration < self.total_iterations:
             # Split the array into self.num_workers parts
-            workers_costs = np.array_split(self.costs, self.num_workers)
+            # workers_costs = np.array_split(self.costs, self.num_workers)
+            workers_costs = np.array_split(self.cst, self.num_workers)
 
             # Now, iterate over the queues and reshaped states
             for q, costs in zip(self.c2w_queues, workers_costs):
-                q.put((self.avg_frac_sprinters_corrected, costs, self.current_iteration))
+                # q.put((self.avg_frac_sprinters_corrected, costs, self.current_iteration))
+                q.put((self.fr, costs, self.current_iteration))
 
             # get information from workers
             for q, ids in zip(self.w2c_queues, workers_server_ids):
@@ -111,6 +119,12 @@ class Coordinator:
             self.aggregate_actions(actions_array)
             self.calculate_costs(actions_array)
             self.avg_frac_sprinters_list.append(self.avg_frac_sprinters_corrected)
+
+            self.itr += 1
+            if self.itr == self.period:
+                self.fr = self.avg_frac_sprinters_corrected
+                self.cst = self.costs
+                self.itr = 0
 
         # Send stop to all
         for q in self.c2w_queues:
@@ -235,6 +249,13 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
                 threshold = config["dp_threshold"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
             server = servers.ThrServer(i, policy, app, servers_config, utility_normalization_factor)
+        elif policy_type == "ql_policy":
+            dim = (2, app.get_state_space_len())
+            epsilon = config["ql_policy_config"]["epsilon"]
+            learning_rate = config["ql_policy_config"]["learning_rate"]
+            discount_factor = config["ql_policy_config"]["discount_factor"]
+            policy = policies.QLPolicy(dim, discount_factor, learning_rate, epsilon)
+            server = servers.QLServer(i, policy, app, servers_config, utility_normalization_factor)
         else:
             sys.exit("Wrong policy type!")
 

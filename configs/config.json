@@ -376,30 +376,36 @@
         "q3": 30,
         "q4": 20
     },
-    "policy_types": ["ac_policy", "thr_policy", "dp_policy"],
+    "policy_types": ["ac_policy", "thr_policy", "dp_policy", "ql_policy"],
     "ac_policy_config": {
         "a_h1_size": 256,
-        "c_h1_size": 256,
+        "c_h1_size": 64,
         "discount_factor": 0.9999,
         "mini_batch_size": 5
     },
-    "folder_name": "/Users/jingyiwu/Documents/Project/data",
+    "ql_policy_config": {
+        "learning_rate": 0.4,
+        "epsilon": 0.1,
+        "discount_factor": 0.99
+    },
+    "folder_name": "/Users/smzahedi/Desktop/Project/data",
     "num_workers": 10,
     "num_servers": 1000,
     "servers_config": {
         "cooling_prob": 0.5,
-        "change": 1,
+        "change": 0,
         "change_iteration": 2000,
         "change_type": 0
     },
     "coordinator_config": {
         "global_cost": 0.1,
         "local_cost": 0.1,
-        "total_iterations": 5000,
+        "total_iterations": 200,
         "min_frac": 0.25,
         "max_frac": 0.75,
         "add_noise": 0,
-        "c_epsilon": 1.8,
-        "c_delta": 200
+        "c_epsilon": 1.5,
+        "c_delta": 100,
+        "period": 120
     }
 }

@@ -7,6 +7,15 @@ class App:
         self.app_state_history = []
         self.current_state = None
 
+    def apply_change(self, change_type):
+        pass
+
+    def get_state_space_len(self):
+        pass
+
+    def get_current_state_index(self):
+        pass
+
     def get_sprinting_utility(self):
         raise NotImplementedError("This method should be overridden.")
 
@@ -38,6 +47,12 @@ class MarkovApp(App):
         self.utilities = utilities
         self.current_state = initial_state
 
+    def get_state_space_len(self):
+        return len(self.utilities)
+
+    def get_current_state_index(self):
+        return self.utilities.index(self.current_state)
+
     def get_sprinting_utility(self):
         return self.current_state
 
@@ -49,6 +64,7 @@ class MarkovApp(App):
         probabilities = self.transition_matrix[self.utilities.index(self.current_state)]
         self.current_state = np.random.choice(self.utilities, p=probabilities)
 
+
 """
 State transition follows Uniform distribution
 """
@@ -59,6 +75,12 @@ class UniformApp(App):
         super().__init__()
         self.utilities = utilities
         self.current_state = np.random.choice(self.utilities)
+
+    def get_state_space_len(self):
+        return len(self.utilities)
+
+    def get_current_state_index(self):
+        return self.utilities.index(self.current_state)
 
     def get_sprinting_utility(self):
         return self.current_state
@@ -89,13 +111,21 @@ class QueueApp(App):
         self.next_departure_sprinting = sprinting_tps
         self.next_arrival = arrival_tps
 
+    def get_state_space_len(self):
+        return self.max_queue_length + 1
+
+    def get_current_state_index(self):
+        return self.current_state
+
     def get_sprinting_utility(self):
         new_queue_length = max(0, self.current_queue_length + self.next_arrival - self.next_departure_sprinting)
         return -min(new_queue_length, self.max_queue_length)
+        # return - new_queue_length
 
     def get_nominal_utility(self):
         new_queue_length = max(0, self.current_queue_length + self.next_arrival - self.next_departure_not_sprinting)
         return -min(new_queue_length, self.max_queue_length)
+        # return - new_queue_length
 
     def update_state(self, action):
         super().update_state(action)
@@ -109,3 +139,9 @@ class QueueApp(App):
         self.next_departure_not_sprinting = np.random.poisson(self.nominal_tps)
         self.next_departure_sprinting = np.random.poisson(self.sprinting_tps)
 
+    def apply_change(self, change_type):
+        if change_type == 0:
+            self.arrival_tps *= 1.3
+        elif change_type == 1:
+            self.nominal_tps /= 1.5
+            self.sprinting_tps /= 1.5

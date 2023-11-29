@@ -1,24 +1,30 @@
+import numpy as np
 import torch
 from torch import nn, optim
 from torch.distributions import Normal
+# import torch.nn.functional as fun
+# import numpy as np
 
 
 class Critic(nn.Module):
     def __init__(self, input_size, h1_size, lr):
         super().__init__()
-        c_l1_size = input_size ** 2 + 4 * input_size
+        # c_l1_size = input_size ** 2 + 4 * input_size
+        c_l1_size = input_size
         self.critic_layer1 = nn.Linear(c_l1_size, h1_size)
-        self.critic_layer2 = nn.Linear(h1_size, 1)
+        self.critic_layer2 = nn.Linear(h1_size, h1_size)
+        self.critic_layer3 = nn.Linear(h1_size, 1)
         self.optimizer = optim.AdamW(self.parameters(), lr=lr)
 
     def forward(self, x):
-        x4 = x ** 4
-        x3 = x ** 3
-        x2 = x ** 2
-        xx = torch.outer(x, x).flatten()
-        x = torch.cat((x4, x3, x2, xx, x))
+        # x4 = x ** 4
+        # x3 = x ** 3
+        # x2 = x ** 2
+        # xx = torch.outer(x, x).flatten()
+        # x = torch.cat((x4, x3, x2, xx, x))
         x = torch.relu(self.critic_layer1(x))
-        state_value = self.critic_layer2(x)
+        x = torch.relu(self.critic_layer2(x))
+        state_value = self.critic_layer3(x)
         return state_value
 
 
@@ -26,7 +32,8 @@ class Actor(nn.Module):
     def __init__(self, input_size, h1_size, lr, std_max):
         super().__init__()
         # Initialize Actor network
-        a_l1_size = 2 * input_size
+        # a_l1_size = 2 * input_size
+        a_l1_size = input_size
         self.actor_layer1 = nn.Linear(a_l1_size, h1_size)
         self.actor_layer2_mean = nn.Linear(h1_size, 1)
         self.actor_layer2_std = nn.Linear(h1_size, 1)
@@ -34,12 +41,13 @@ class Actor(nn.Module):
         self.std_max = std_max
 
     def forward(self, x):
-        x2 = x ** 2
-        x = torch.cat((x2, x))
+        # x2 = x ** 2
+        # x = torch.cat((x2, x))
         x = torch.relu(self.actor_layer1(x))
         mean = self.actor_layer2_mean(x)
-        std = torch.exp(self.actor_layer2_std(x))
-        std = torch.clamp(std, min=0, max=self.std_max)
+        # std = torch.exp(self.actor_layer2_std(x))
+        # std = torch.clamp(std, min=0, max=self.std_max)
+        std = self.std_max
         dist = Normal(loc=mean, scale=std)
         u = dist.sample()
         # a = torch.tanh(u)
@@ -50,10 +58,54 @@ class Actor(nn.Module):
         # return a * 0.5 + 0.5, log_prob
         return u, log_prob
 
+    def get_mean_std(self, x):
+        # x2 = x ** 2
+        # x = torch.cat((x2, x))
+        x = torch.relu(self.actor_layer1(x))
+        mean = self.actor_layer2_mean(x)
+        # std = torch.sigmoid(self.actor_layer2_std(x)) * self.std_max
+        # std = torch.exp(self.actor_layer2_std(x))
+        # std = torch.clamp(std, min=0, max=self.std_max)
+        std = self.std_max
+        return mean, std
+
 
 class Policy:
     def get_new_action(self, state):
         pass
+
+    def printable_action(self, state):
+        pass
+
+
+class QLPolicy(Policy):
+    def __init__(self, dim, discount_factor, learning_rate, epsilon):
+        self.q_s = np.zeros(dim)
+        self.q_ns = np.zeros(dim)
+        self.df = discount_factor
+        self.lr = learning_rate
+        self.e = epsilon
+
+    def get_new_action(self, state):
+        if np.random.uniform() <= self.e:
+            return np.random.choice([0, 1])
+        elif self.q_s[state] >= self.q_ns[state]:
+            return 0
+        else:
+            return 1
+
+    def printable_action(self, state):
+        if self.q_s[state] >= self.q_ns[state]:
+            return 0
+        else:
+            return 1
+
+    def update_policy(self, old_state, action, reward, new_state):
+        delta = reward + self.df * max(self.q_s[new_state], self.q_ns[new_state])
+        if action == 0:
+            self.q_s[old_state] += self.lr * (delta - self.q_s[old_state])
+        else:
+            self.q_ns[old_state] += self.lr * (delta - self.q_ns[old_state])
 
 
 class ACPolicy(Policy):
@@ -75,6 +127,10 @@ class ACPolicy(Policy):
         state_tensor = torch.tensor(state, dtype=torch.float32)
         action, self.log_prob = self.actor(state_tensor)
         return action.item()
+
+    def printable_action(self, state):
+        state_tensor = torch.tensor(state, dtype=torch.float32)
+        return self.actor.get_mean_std(state_tensor)
 
     def compute_returns(self, next_state_value):
         r = next_state_value
