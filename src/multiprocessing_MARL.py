@@ -62,7 +62,8 @@ class Coordinator:
         self.c_epsilon = coordinator_config["c_epsilon"]
         self.c_delta = coordinator_config["c_delta"]
         self.epsilon = self.c_epsilon / np.log10(self.num_servers)
-        self.epsilon_prime = self.epsilon / self.total_iterations_dp
+        # self.epsilon_prime = self.epsilon / self.total_iterations_dp
+        self.epsilon_prime = self.epsilon / 120
         self.delta = self.c_delta / self.num_servers
         self.alpha = 1 + 2 * np.log10(1 / self.delta) / self.epsilon
         self.var = self.alpha / (2 * self.num_servers ** 2 * self.epsilon_prime)
@@ -93,7 +94,7 @@ class Coordinator:
         self.avg_frac_sprinters *= self.sprinters_decay_factor
         self.avg_frac_sprinters += (1 - self.sprinters_decay_factor) * self.frac_sprinters
         self.avg_frac_sprinters_corrected = self.avg_frac_sprinters / (
-                    1 - self.sprinters_decay_factor ** self.current_iteration)
+                1 - self.sprinters_decay_factor ** self.current_iteration)
 
     # Main function for coordinator
     def run_coordinator(self, path):
@@ -142,7 +143,7 @@ class Coordinator:
 
 
 """
-Workers: Manages several servers. 
+Workers: Manages several servers
 """
 
 
@@ -186,6 +187,8 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     policy_type = config["policy_types"][policy_id]
     app_utilities = config["app_utilities"]
     add_noise = coordinator_config["add_noise"]
+    add_change = servers_config["change"]
+    period = coordinator_config["period"]
     utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
     if add_noise:
         sprinters_decay_factor = config["sprinters_decay_factor_noise"][app_type][app_sub_type]
@@ -212,7 +215,10 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
         elif app_type == "uniform":
             app = applications.UniformApp(app_utilities)
         elif app_type == "queue":
-            arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
+            if add_change == 1:
+                arrival_tps = config["queue_app_arrival_tps_change"][app_sub_type]
+            else:
+                arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
             sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
             nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
             max_queue_length = config["queue_app_max_queue_length"][app_sub_type]
@@ -235,32 +241,35 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             df = config["ac_policy_config"]["discount_factor"]
             mini_batch_size = config["ac_policy_config"]["mini_batch_size"]
             policy = policies.ACPolicy(1, 3, a_h1_size, c_h1_size, a_lr, c_lr, df, std_max, mini_batch_size)
-            server = servers.ACServer(i, policy, app, servers_config,
+            server = servers.ACServer(i, period, policy, app, servers_config,
                                       state_normalization_factor, utility_normalization_factor)
         elif policy_type == "thr_policy":
             threshold = threshold_in
             if threshold == -1:
                 threshold = config["threshold"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
-            server = servers.ThrServer(i, policy, app, servers_config, utility_normalization_factor)
+            server = servers.ThrServer(i, period, policy, app, servers_config, utility_normalization_factor)
         elif policy_type == "dp_policy":
             threshold = threshold_in
             if threshold == -1:
-                threshold = config["dp_threshold"][app_type][app_sub_type]
+                if add_change == 1:
+                    threshold = config["dp_threshold_change"][app_type][app_sub_type]
+                else:
+                    threshold = config["dp_threshold"][app_type][app_sub_type]
             policy = policies.ThrPolicy(threshold)
-            server = servers.ThrServer(i, policy, app, servers_config, utility_normalization_factor)
+            server = servers.ThrServer(i, period, policy, app, servers_config, utility_normalization_factor)
         elif policy_type == "ql_policy":
             dim = (2, app.get_state_space_len())
             epsilon = config["ql_policy_config"]["epsilon"]
-            learning_rate = config["ql_policy_config"]["learning_rate"]
+            learning_rate = config["ql_lr"][app_type][app_sub_type]
             discount_factor = config["ql_policy_config"]["discount_factor"]
             policy = policies.QLPolicy(dim, discount_factor, learning_rate, epsilon)
-            server = servers.QLServer(i, policy, app, servers_config, utility_normalization_factor)
+            server = servers.QLServer(i, period, policy, app, servers_config, utility_normalization_factor)
         else:
             sys.exit("Wrong policy type!")
 
         servers_list.append(server)
-    
+
     ids_list = np.array_split(np.arange(0, num_servers), num_workers)
     for i in range(0, num_workers):
         worker = Worker(servers_list[ids_list[i][0]:ids_list[i][-1] + 1], w2c_queues[i], c2w_queues[i])
@@ -273,19 +282,19 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
 
     for worker_processor in worker_processors:
         worker_processor.join()
-    
+
     coordinator_processor.join()
 
     end_time = time.time()
     total_time = end_time - start_time
     print(f"Total running time: {total_time} seconds")
-    
+
 
 if __name__ == "__main__":
-    
-    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+    # config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+    config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
 
-    main(config_file, 2, 3, 0, -1)
+    main(config_file, 0, 0, 0, -1)
 
     """parser = argparse.ArgumentParser()
     parser.add_argument('app_type_id', type=int)

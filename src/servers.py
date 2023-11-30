@@ -5,7 +5,7 @@ import numpy as np
 
 
 class Server:
-    def __init__(self, server_id, policy, app, server_config, utility_normalization_factor):
+    def __init__(self, server_id, period, policy, app, server_config, utility_normalization_factor):
         self.server_id = server_id
 
         self.server_state = 0       # initial state: Active
@@ -15,12 +15,14 @@ class Server:
 
         self.frac_sprinters = 0
 
+        self.period = period
+
         self.policy = policy
         self.app = app
 
         self.cooling_prob = server_config["cooling_prob"]
         self.change = server_config["change"]
-        self.change_iteration = server_config["change_iteration"]
+        self.change_iteration = server_config["change_iteration"] * self.period
         self.change_type = server_config["change_type"]
 
         self.reward_history = []
@@ -78,8 +80,8 @@ class Server:
 
 # Server with Actor-Critic policy
 class ACServer(Server):
-    def __init__(self, server_id, policy, app, server_config, state_normalization_factor, utility_normalization_factor):
-        super().__init__(server_id, policy, app, server_config, utility_normalization_factor)
+    def __init__(self, server_id, period, policy, app, server_config, state_normalization_factor, utility_normalization_factor):
+        super().__init__(server_id, period, policy, app, server_config, utility_normalization_factor)
         self.state_normalization_factor = state_normalization_factor
         self.update_actor = 0
 
@@ -101,7 +103,8 @@ class ACServer(Server):
         self.reward *= self.utility_normalization_factor
 
     def run_server(self, cost, frac_sprinters, iteration):
-        if self.server_id == 19 and iteration % 2000 == 0:
+        if self.server_id == 19 and iteration % (5 * self.period) == 0:
+            print(iteration)
             state = np.array([self.frac_sprinters])
             print(self.policy.printable_action(state))
         return super().run_server(cost, frac_sprinters, iteration)
@@ -110,8 +113,8 @@ class ACServer(Server):
 #  Server with threshold policy.
 #  It is a fixed policy, so it doesn't need update policy
 class ThrServer(Server):
-    def __init__(self, server_id, policy, app, server_config, utility_normalization_factor):
-        super().__init__(server_id, policy, app, server_config, utility_normalization_factor)
+    def __init__(self, server_id, period, policy, app, server_config, utility_normalization_factor):
+        super().__init__(server_id, period, policy, app, server_config, utility_normalization_factor)
 
     def update_policy(self):
         return
@@ -124,8 +127,8 @@ class ThrServer(Server):
 
 
 class QLServer(Server):
-    def __init__(self, server_id, policy, app, server_config, utility_normalization_factor):
-        super().__init__(server_id, policy, app, server_config, utility_normalization_factor)
+    def __init__(self, server_id, period, policy, app, server_config, utility_normalization_factor):
+        super().__init__(server_id, period, policy, app, server_config, utility_normalization_factor)
         self.old_state = (self.server_state, self.app.get_current_state_index())
         self.new_state = None
 
@@ -144,7 +147,8 @@ class QLServer(Server):
         self.reward *= self.utility_normalization_factor
 
     def run_server(self, cost, frac_sprinters, iteration):
-        if self.server_id == 19 and iteration % 2000 == 0:
+        if self.server_id == 19 and iteration % (5 * self.period) == 0:
+            print(iteration)
             for j in range(0, self.app.get_state_space_len()):
                 state = (0, j)
                 print(self.policy.printable_action(state), end="")

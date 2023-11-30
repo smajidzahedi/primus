@@ -149,7 +149,11 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     prob_cooling = config["servers_config"]["cooling_prob"]
     app_type = config["app_types"][app_type_id]
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
-    error_1 = config["dp_error"][app_type][app_sub_type]
+    add_change = config["servers_config"]["change"]
+    if add_change == 1:
+        error_1 = config["dp_error_change"][app_type][app_sub_type]
+    else:
+        error_1 = config["dp_error"][app_type][app_sub_type]
     print(error_1)
 
     app_utilities = config["app_utilities"]
@@ -161,7 +165,10 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
         transition_matrix = config["markov_app_transition_matrices"][app_sub_type]
         app = Markov(app_utilities, transition_matrix, utility_normalization_factor)
     elif app_type == "queue":
-        arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
+        if add_change == 1:
+            arrival_tps = config["queue_app_arrival_tps_change"][app_sub_type]
+        else:
+            arrival_tps = config["queue_app_arrival_tps"][app_sub_type]
         sprinting_tps = config["queue_app_sprinting_tps"][app_sub_type]
         nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
         utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
@@ -173,7 +180,8 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     trans = app.get_tran_prob()
     app_state_len = app.get_app_state_len()
     dim = (server_state_len, app_state_len)
-    v = np.random.rand(server_state_len, app_state_len)
+    #v = np.random.rand(server_state_len, app_state_len)
+    v = np.zeros(dim)
     new_v = np.zeros(dim)
     actions = np.ones(app_state_len)
     q_s = np.zeros(app_state_len)
@@ -240,6 +248,7 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 
 
 if __name__ == "__main__":
-    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
-    run_dp(config_file, 1, 6)
+    config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
+    # config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+    run_dp(config_file, 2, 2)
 

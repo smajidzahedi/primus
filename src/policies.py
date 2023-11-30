@@ -79,33 +79,56 @@ class Policy:
 
 
 class QLPolicy(Policy):
+    # def __init__(self, dim, discount_factor, learning_rate, epsilon, window):
     def __init__(self, dim, discount_factor, learning_rate, epsilon):
-        self.q_s = np.zeros(dim)
-        self.q_ns = np.zeros(dim)
+        self.q = (-20 / (1 - discount_factor)) * np.ones(dim + (2,))
+        # self.q = np.zeros(dim + (2,))
         self.df = discount_factor
         self.lr = learning_rate
         self.e = epsilon
+        # self.states = []
+        # self.actions = []
+        # self.rewards = []
+        # self.itr = 0
+        # self.window = window
+        # self.g = 0
 
     def get_new_action(self, state):
         if np.random.uniform() <= self.e:
             return np.random.choice([0, 1])
-        elif self.q_s[state] >= self.q_ns[state]:
+        elif self.q[state][0] >= self.q[state][1]:
             return 0
         else:
             return 1
 
     def printable_action(self, state):
-        if self.q_s[state] >= self.q_ns[state]:
+        if self.q[state][0] >= self.q[state][1]:
             return 0
         else:
             return 1
 
     def update_policy(self, old_state, action, reward, new_state):
-        delta = reward + self.df * max(self.q_s[new_state], self.q_ns[new_state])
-        if action == 0:
-            self.q_s[old_state] += self.lr * (delta - self.q_s[old_state])
-        else:
-            self.q_ns[old_state] += self.lr * (delta - self.q_ns[old_state])
+
+        # self.states.append(old_state)
+        # self.actions.append(action)
+        # self.rewards.append(reward)
+        # self.g = self.df * self.g + reward
+        #
+        # if self.itr > self.window:
+        #     s = self.states.pop(0)
+        #     a = self.actions.pop(0)
+        #     r = self.rewards.pop(0)
+        #
+        #     self.g -= r * (self.df ** self.window)
+        #
+        #     delta = self.g + (self.df ** self.window) * self.q[old_state][action]
+        #
+        #     self.q[s][a] += self.lr * (delta - self.q[s][a])
+        #
+        # self.itr += 1
+
+        delta = reward + self.df * max(self.q[new_state][0], self.q[new_state][1])
+        self.q[old_state][action] += self.lr * (delta - self.q[old_state][action])
 
 
 class ACPolicy(Policy):

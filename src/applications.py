@@ -119,13 +119,13 @@ class QueueApp(App):
 
     def get_sprinting_utility(self):
         new_queue_length = max(0, self.current_queue_length + self.next_arrival - self.next_departure_sprinting)
-        return -min(new_queue_length, self.max_queue_length)
-        # return - new_queue_length
+        # return -min(new_queue_length, self.max_queue_length)
+        return - new_queue_length
 
     def get_nominal_utility(self):
         new_queue_length = max(0, self.current_queue_length + self.next_arrival - self.next_departure_not_sprinting)
-        return -min(new_queue_length, self.max_queue_length)
-        # return - new_queue_length
+        # return -min(new_queue_length, self.max_queue_length)
+        return - new_queue_length
 
     def update_state(self, action):
         super().update_state(action)

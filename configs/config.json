@@ -41,8 +41,8 @@
         "queue": {
             "q1": 0.02,
             "q2": 0.02,
-            "q3": 0.03,
-            "q4": 0.045
+            "q3": 0.02,
+            "q4": 0.02
         }
     },
     "a_lr_no_noise": {
@@ -191,12 +191,12 @@
         },
         "markov": {
             "m1": 0.3,
-            "m2": 0.2,
+            "m2": 0.1,
             "m3": 0.2,
             "m4": 0.6,
-            "m5": 0.4,
+            "m5": 0.5,
             "m6": 0.4,
-            "m7": 0.6
+            "m7": 0.7
         },
         "queue": {
             "q1": 1,
@@ -225,29 +225,69 @@
             "q4": 2
         }
     },
-    "dp_error": {
+    "dp_threshold_change": {
         "uniform": {
-            "u1": 0.01
+            "u1": 0.5
         },
         "markov": {
-            "m1": 0.001,
-            "m2": 0.001,
-            "m3": 0.001,
-            "m4": 0.001,
-            "m5": 0.001,
-            "m6": 0.001,
-            "m7": 0.001
+            "m1": 0.1,
+            "m2": 0.1,
+            "m3": 0.1,
+            "m4": 0.5,
+            "m5": 0.3,
+            "m6": 0.3,
+            "m7": 0.6
         },
         "queue": {
-            "q1": 1e-05,
-            "q2": 0.001,
-            "q3": 0.1,
-            "q4": 0.1
+            "q1": 14,
+            "q2": 12,
+            "q3": 7,
+            "q4": 5
+        }
+    },
+    "dp_error": {
+        "uniform": {
+            "u1": 0.1
+        },
+        "markov": {
+            "m1": 0.01,
+            "m2": 0.1,
+            "m3": 0.1,
+            "m4": 0.1,
+            "m5": 0.1,
+            "m6": 0.1,
+            "m7": 0.1
+        },
+        "queue": {
+            "q1": 0.0045,
+            "q2": 0.04,
+            "q3": 0.0001,
+            "q4": 0.0001
+        }
+    },
+    "dp_error_change": {
+        "uniform": {
+            "u1": 0.1
+        },
+        "markov": {
+            "m1": 0.01,
+            "m2": 0.1,
+            "m3": 0.1,
+            "m4": 0.1,
+            "m5": 0.1,
+            "m6": 0.1,
+            "m7": 0.1
+        },
+        "queue": {
+            "q1": 0.0045,
+            "q2": 0.000008,
+            "q3": 0.000000005,
+            "q4": 0.000000001
         }
     },
     "std_max": {
         "uniform": {
-            "u1": 0.01
+            "u1": 0.05
         },
         "markov": {
             "m1": 0.01,
@@ -358,6 +398,12 @@
         "q3": 27,
         "q4": 12
     },
+    "queue_app_arrival_tps_change": {
+        "q1": 28,
+        "q2": 33,
+        "q3": 19,
+        "q4": 7
+    },
     "queue_app_sprinting_tps": {
         "q1": 86,
         "q2": 112,
@@ -371,20 +417,39 @@
         "q4": 11
     },
     "queue_app_max_queue_length": {
-        "q1": 50,
+        "q1": 40,
         "q2": 50,
         "q3": 30,
         "q4": 20
+    },
+    "ql_lr": {
+        "uniform": {
+            "u1": 0.4
+        },
+        "markov": {
+            "m1": 0.45,
+            "m2": 0.1,
+            "m3": 0.45,
+            "m4": 0.45,
+            "m5": 0.45,
+            "m6": 0.45,
+            "m7": 0.5
+        },
+        "queue": {
+            "q1": 0.8,
+            "q2": 0.001,
+            "q3": 0.001,
+            "q4": 0.001
+        }
     },
     "policy_types": ["ac_policy", "thr_policy", "dp_policy", "ql_policy"],
     "ac_policy_config": {
         "a_h1_size": 256,
         "c_h1_size": 64,
-        "discount_factor": 0.9999,
+        "discount_factor": 0.99,
         "mini_batch_size": 5
     },
     "ql_policy_config": {
-        "learning_rate": 0.4,
         "epsilon": 0.1,
         "discount_factor": 0.99
     },
@@ -394,18 +459,18 @@
     "servers_config": {
         "cooling_prob": 0.5,
         "change": 0,
-        "change_iteration": 2000,
+        "change_iteration": 5,
         "change_type": 0
     },
     "coordinator_config": {
         "global_cost": 0.1,
         "local_cost": 0.1,
-        "total_iterations": 200,
+        "total_iterations": 120,
         "min_frac": 0.25,
         "max_frac": 0.75,
         "add_noise": 0,
         "c_epsilon": 1.5,
         "c_delta": 100,
-        "period": 120
+        "period": 60
     }
 }
