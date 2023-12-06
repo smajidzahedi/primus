@@ -145,7 +145,9 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 
     min_frac = config["coordinator_config"]["min_frac"]
     max_frac = config["coordinator_config"]["max_frac"]
-    discount_factor = config["ac_policy_config"]["discount_factor"]
+    app_type = config["app_types"][app_type_id]
+    app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
+    discount_factor = config["ac_discount_factor"][app_type][app_sub_type]
     prob_cooling = config["servers_config"]["cooling_prob"]
     app_type = config["app_types"][app_type_id]
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
@@ -248,7 +250,7 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 
 
 if __name__ == "__main__":
-    config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-    # config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
-    run_dp(config_file, 2, 2)
+    # config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
+    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+    run_dp(config_file, 1, 5)
 

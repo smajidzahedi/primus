@@ -102,12 +102,12 @@ class ACServer(Server):
         self.action, self.reward = self.get_action_utility_by_threshold(threshold)
         self.reward *= self.utility_normalization_factor
 
-    def run_server(self, cost, frac_sprinters, iteration):
-        if self.server_id == 19 and iteration % (5 * self.period) == 0:
-            print(iteration)
-            state = np.array([self.frac_sprinters])
-            print(self.policy.printable_action(state))
-        return super().run_server(cost, frac_sprinters, iteration)
+    """def run_server(self, cost, frac_sprinters, iteration):
+        #if self.server_id == 19 and iteration % (5 * self.period) == 0:
+            #print(iteration)
+            #state = np.array([self.frac_sprinters])
+            #print(self.policy.printable_action(state))
+        return super().run_server(cost, frac_sprinters, iteration)"""
 
 
 #  Server with threshold policy.

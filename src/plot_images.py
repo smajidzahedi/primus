@@ -38,8 +38,8 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     frac_sprinters_path = os.path.join(path, "frac_sprinters.txt")
     frac_sprinters = np.loadtxt(frac_sprinters_path)
     total_iter = frac_sprinters.shape[0]
-    print(total_iter)
-    print(sample_size)
+    #print(total_iter)
+    #print(sample_size)
     frac_sprinters = frac_sprinters[np.arange(0, total_iter, sample_size)]
     plt.figure(figsize=(25, 10))
     plt.plot(frac_sprinters)
@@ -66,7 +66,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     plt.grid(True)
     plt.savefig(os.path.join(path, "mean_rewards.png"))
     plt.close()
-    print(len(mean_rewards))
+    #print(len(mean_rewards))
     #   calculate average reward over rounds for different policy
     average_reward = mean_rewards[len(mean_rewards) - 100:].mean()
     file_path = os.path.join(path, "different_policy_avg_rewards.txt")
@@ -81,6 +81,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
         x = list(range(1, total_iter + 1))
         plt.figure(figsize=(40, 20))
         decay_factor = 0.999
+        total = np.zeros((num_servers, total_iter))
         for server_id in range(num_servers):
             itr = 1
             avg_length = 0
@@ -92,30 +93,39 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
                 avg_length = decay_factor * avg_length + (1 - decay_factor) * float(line.strip())
                 y.append(avg_length / (1 - decay_factor ** itr))
                 itr += 1
-            plt.plot(x, y, label=f'Server {server_id}')
+            total[server_id] = y
+        if add_change:
+            with open(os.path.join("/Users/jingyiwu/Documents/Project/MARL_PAPER/asplos24/data", f"q{app_type_sub_id+1}_{policy}_change_{change_type}.txt"), "w") as file:
+                for i in range(len(total.mean(axis=0))):  # Assuming all lists have the same length
+                    file.write(f"{total.mean(axis=0)[i]}\n")
+        plt.plot(x, total.mean(axis=0))
+        print(total[total.shape[0]-100:].mean())
         x_ticks = list(range(0, total_iter, 500))
         x_tick_labels = [str(tick) for tick in x_ticks]  # Convert tick values to strings
         plt.xticks(x_ticks, x_tick_labels, rotation=45)
-        # plt.legend(ncol=2, bbox_to_anchor=(1, 1))
         plt.xlabel('Number of Iterations')
         plt.ylabel('Queue Length')
         plt.title('Queue Length Over Iterations for Each Server')
         plt.grid(True)
         if add_change:
-            plt.savefig(os.path.join(path, f"q{app_type_sub_id + 1}_{policy}_length_change_{change_type}.png"))
+            plt.savefig(os.path.join(path, f"q{app_type_sub_id+1}_{policy}_length_change_{change_type}.png"))
         else:
-            plt.savefig(os.path.join(path, f"q{app_type_sub_id + 1}_{policy}_length.png"))
+            plt.savefig(os.path.join(path, f"q{app_type_sub_id+1}_{policy}_length.png"))
         plt.close()
-    return average_reward
 
+    return total[total.shape[0]-100:].mean()
 
 if __name__ == "__main__":
-    config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-    """parser = argparse.ArgumentParser()
+    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+    # config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
+    parser = argparse.ArgumentParser()
     parser.add_argument('app_type_id', type=int)
     parser.add_argument('app_type_sub_id', type=int)
+    parser.add_argument('policy_id', type=int)
     args = parser.parse_args()
-    avg_reward = main(config_file, args.app_type_id, args.app_type_sub_id, 0)"""
+    queue_length = main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id)
 
-    avg_reward = main(config_file, 0, 0, 0)
-    print(f"Average reward: {avg_reward}")
+    #queue_length = main(config_file, 2, 0, 1)
+    #print(queue_length)
+
+   
