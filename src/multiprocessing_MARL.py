@@ -18,7 +18,7 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-#set_seed(42)
+set_seed(42)
 
 """
 Coordinator: Communicates with workers and aggregates servers actions to determine if circuit breaker trips.
@@ -69,23 +69,25 @@ class Coordinator:
         self.var = self.alpha / (2 * self.num_servers ** 2 * self.epsilon_prime)
         self.sigma = np.sqrt(self.var)
         self.add_noise = coordinator_config["add_noise"]
+        self.count_sprint_epoch = np.zeros(self.num_servers)
 
     #   Whether system trips or not
-    def calculate_costs(self, actions):
-        self.costs = self.calculate_local_costs(actions) + self.calculate_global_costs()
+    def calculate_costs(self):
+        self.costs = self.calculate_local_costs() + self.calculate_global_costs()
 
     def calculate_global_costs(self):
         global_cost_factor = min(max((self.frac_sprinters - self.min_frac) / (self.max_frac - self.min_frac), 0), 1)
         return self.global_cost * global_cost_factor * np.ones(self.num_servers)
 
-    def calculate_local_costs(self, actions):
+    def calculate_local_costs(self):
         local_cost_factor = (np.tanh(30 * (self.frac_sprinters - self.max_frac)) + 1) / 2
-        return self.local_cost * local_cost_factor * (1 - actions)
+        return self.local_cost * local_cost_factor * self.count_sprint_epoch
 
     # Calculate number of sprinters in this round, determining whether system trip or not.
     # Calculate the fractional number of sprinters by Bias-Corrected Exponential Weighted Moving Average
     # Add noise on the fraction number of sprinters in this round (# of sprinters / total # of servers)
     def aggregate_actions(self, actions):
+        self.count_sprint_epoch[np.where(actions == 0)] += 1
         self.frac_sprinters = (self.num_servers - actions.sum()) / self.num_servers
         if self.add_noise == 1:
             self.frac_sprinters += np.random.normal(loc=0, scale=self.sigma)
@@ -118,7 +120,7 @@ class Coordinator:
                 actions_array[ids] = actions
 
             self.aggregate_actions(actions_array)
-            self.calculate_costs(actions_array)
+            self.calculate_costs()
             self.avg_frac_sprinters_list.append(self.avg_frac_sprinters_corrected)
 
             self.itr += 1
@@ -126,6 +128,7 @@ class Coordinator:
                 self.fr = self.avg_frac_sprinters_corrected
                 self.cst = self.costs
                 self.itr = 0
+                self.count_sprint_epoch = np.zeros(self.num_servers)
 
         # Send stop to all
         for q in self.c2w_queues:
@@ -294,11 +297,11 @@ if __name__ == "__main__":
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
     #config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
 
-    #main(config_file, 2, 0, 1, -1)
+    main(config_file, 2, 1, 2, -1)
 
-    parser = argparse.ArgumentParser()
+    """parser = argparse.ArgumentParser()
     parser.add_argument('app_type_id', type=int)
     parser.add_argument('app_type_sub_id', type=int)
     parser.add_argument('policy_id', type=int)
     args = parser.parse_args()
-    main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id, -1)
+    main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id, -1)"""

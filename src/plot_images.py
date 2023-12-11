@@ -113,19 +113,19 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
             plt.savefig(os.path.join(path, f"q{app_type_sub_id+1}_{policy}_length.png"))
         plt.close()
 
-    return total[total.shape[0]-100:].mean()
+    return average_reward
 
 if __name__ == "__main__":
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
     # config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-    parser = argparse.ArgumentParser()
+    """parser = argparse.ArgumentParser()
     parser.add_argument('app_type_id', type=int)
     parser.add_argument('app_type_sub_id', type=int)
     parser.add_argument('policy_id', type=int)
     args = parser.parse_args()
-    queue_length = main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id)
+    queue_length = main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id)"""
 
-    #queue_length = main(config_file, 2, 0, 1)
-    #print(queue_length)
+    average_reward = main(config_file, 2, 0, 1)
+    print(average_reward)
 
    
