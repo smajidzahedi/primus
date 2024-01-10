@@ -146,30 +146,34 @@ class QueueApp(App):
             self.nominal_tps /= 1.5
             self.sprinting_tps /= 1.5
 
+
 class SparkApp(App):
-    def __init__(self, gain, initial_index):
+    def __init__(self, gains, initial_index):
         super().__init__()
-        self.gain = gain
-        self.gain_max = np.array(gain).max()
-        self.current_state = self.gain[initial_index]
+        self.gains = gains
+        self.max_gain = np.array(gains).max()
+        self.current_state = self.gains[initial_index]
         self.current_index = initial_index
+        self.state_space_len = len(self.gains)
 
     def get_state_space_len(self):
-        return len(self.gain)
+        return self.state_space_len
 
     def get_current_state_index(self):
-        return self.gain.index(self.current_state)
+        return self.current_index
 
     def get_sprinting_utility(self):
-        return self.current_state / self.gain_max
+        return self.current_state / self.max_gain
 
     def get_nominal_utility(self):
         return 0
 
     def update_state(self, action):
         super().update_state(action)
-        if self.current_index == self.get_state_space_len()-1:
+
+        if self.current_index == self.state_space_len - 1:
             self.current_index = 0
-        elif self.current_index < self.get_state_space_len()-1:
+        elif self.current_index < self.state_space_len - 1:
             self.current_index += 1
-        self.current_state = self.gain[self.current_index]
+
+        self.current_state = self.gains[self.current_index]

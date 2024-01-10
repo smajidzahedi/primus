@@ -28,6 +28,9 @@ class App:
     def get_tran_prob(self) -> np.ndarray:
         pass
 
+    def get_state(self, index):
+        raise NotImplementedError
+
     def calculate_app_state_probs(self, action, prob_cooling):
         dim = (server_state_len, self.get_app_state_len())
         p = np.ones(dim) / (server_state_len * self.get_app_state_len())
@@ -60,6 +63,9 @@ class Uniform(App):
     def get_app_state_len(self):
         return self.app_state_len
 
+    def get_state(self, index):
+        return self.app_state[index]
+
     def get_sprinting_utility(self, index):
         return self.app_state[index]
 
@@ -87,6 +93,9 @@ class Markov(App):
 
     def get_sprinting_utility(self, index):
         return self.utility_normalization_factor * self.app_state[index]
+
+    def get_state(self, index):
+        return self.app_state[index]
 
     def get_nominal_utility(self, index):
         return 0
@@ -127,6 +136,9 @@ class Queue(App):
     def get_app_state_len(self):
         return self.app_state_len
 
+    def get_state(self, index):
+        return self.app_state[index]
+
     def get_sprinting_utility(self, index):
         new_queue_length = max(0, self.app_state[index] + self.arrival_tps - self.sprinting_tps)
         return - self.utility_normalization_factor * min(new_queue_length, self.app_state_len - 1)
@@ -138,10 +150,11 @@ class Queue(App):
     def get_tran_prob(self):
         return self.tran_prob
 
+
 class Spark(App):
     def __init__(self, app_utilities, prob):
-        app_utilities = [float(num) for num in app_utilities] 
-        prob = [float(num) for num in prob]
+        # app_utilities = [float(num) for num in app_utilities]
+        # prob = [float(num) for num in prob]
         self.app_state = app_utilities
         self.app_state_len = len(app_utilities)
         dim = (self.app_state_len, self.app_state_len, 2)
@@ -150,10 +163,14 @@ class Spark(App):
             for j in range(self.app_state_len):
                 self.tran_prob[i][j][0] = prob[i]
                 self.tran_prob[i][j][1] = prob[i]
+
     def get_app_state_len(self):
         return self.app_state_len
 
     def get_sprinting_utility(self, index):
+        return self.app_state[index]
+
+    def get_state(self, index):
         return self.app_state[index]
 
     def get_nominal_utility(self, index):
@@ -161,7 +178,8 @@ class Spark(App):
 
     def get_tran_prob(self):
         return self.tran_prob
-    
+
+
 def run_dp(config_file_name, app_type_id, app_sub_type_id):
     with open(config_file_name, 'r') as f:
         config = json.load(f)
@@ -198,41 +216,43 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
         app = Queue(arrival_tps, sprinting_tps, nominal_tps, 20, utility_normalization_factor)
         # sys.exit()
     elif app_type == "spark":
-        if app_sub_type == "s1":
-            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+        with open('../data/gain.txt') as file:
+            if app_sub_type == "s1":
                 for line in file:
                     if "als_prob" in line.strip():
                         prob = line.strip().split(":")[1].split("\t")
-                    if "als_utilities" in line.strip():
+                    elif "als_utilities" in line.strip():
                         app_utilities = line.strip().split(":")[1].split("\t")
-        elif app_sub_type == "s2":
-            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+            elif app_sub_type == "s2":
                 for line in file:
                     if "kmeans_prob" in line.strip():
                         prob = line.strip().split(":")[1].split("\t")
-                    if "kmeans_utilities" in line.strip():
+                    elif "kmeans_utilities" in line.strip():
                         app_utilities = line.strip().split(":")[1].split("\t")
-        elif app_sub_type == "s3":
-            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+            elif app_sub_type == "s3":
                 for line in file:
                     if "lr_prob" in line.strip():
                         prob = line.strip().split(":")[1].split("\t")
-                    if "lr_utilities" in line.strip():
+                    elif "lr_utilities" in line.strip():
                         app_utilities = line.strip().split(":")[1].split("\t")
-        elif app_sub_type == "s4":
-            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+            elif app_sub_type == "s4":
                 for line in file:
                     if "pr_prob" in line.strip():
                         prob = line.strip().split(":")[1].split("\t")
-                    if "pr_utilities" in line.strip():
+                    elif "pr_utilities" in line.strip():
                         app_utilities = line.strip().split(":")[1].split("\t")
-        elif app_sub_type == "s5":
-            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+            elif app_sub_type == "s5":
                 for line in file:
                     if "svm_prob" in line.strip():
                         prob = line.strip().split(":")[1].split("\t")
-                    if "svm_utilities" in line.strip():
+                    elif "svm_utilities" in line.strip():
                         app_utilities = line.strip().split(":")[1].split("\t")
+            else:
+                sys.exit("unknown sub type")
+        app_utilities = np.array(app_utilities).astype(float)
+        prob = np.array(prob).astype(float)
+        app_utilities = app_utilities[prob > 0]
+        prob = prob[prob > 0]
         app = Spark(app_utilities, prob)
     else:
         sys.exit("App model is not supported")
@@ -305,11 +325,11 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     print(itr)
     print(frac_sprinters)
     print(actions)
+    print('DP threshold is:', app.get_state(actions.sum()))
     print(avg_reward)
 
 
 if __name__ == "__main__":
-    # config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
+    config_file = "../configs/config.json"
     run_dp(config_file, 3, 4)
 

@@ -232,33 +232,37 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             max_queue_length = config["queue_app_max_queue_length"][app_sub_type]
             app = applications.QueueApp(arrival_tps, sprinting_tps, nominal_tps, max_queue_length)
         elif app_type == "spark":
-            if app_sub_type == "s1":
-                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+            with open("../data/gain.txt") as file:
+                if app_sub_type == "s1":
                     for line in file:
                         if "als_gain" in line.strip():
-                            gain = line.strip().split(":")[1].split("\t")
-            elif app_sub_type == "s2":
-                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                            gains = line.strip().split(":")[1].split("\t")
+                            break
+                elif app_sub_type == "s2":
                     for line in file:
                         if "kmeans_gain" in line.strip():
-                            gain = line.strip().split(":")[1].split("\t")
-            elif app_sub_type == "s3":
-                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                            gains = line.strip().split(":")[1].split("\t")
+                            break
+                elif app_sub_type == "s3":
                     for line in file:
                         if "lr_gain" in line.strip():
-                            gain = line.strip().split(":")[1].split("\t")
-            elif app_sub_type == "s4":
-                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                            gains = line.strip().split(":")[1].split("\t")
+                            break
+                elif app_sub_type == "s4":
                     for line in file:
                         if "pr_gain" in line.strip():
-                            gain = line.strip().split(":")[1].split("\t")
-            elif app_sub_type == "s5":
-                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                            gains = line.strip().split(":")[1].split("\t")
+                            break
+                elif app_sub_type == "s5":
                     for line in file:
                         if "svm_gain" in line.strip():
-                            gain = line.strip().split(":")[1].split("\t")
-            gain = [float(num) for num in gain] 
-            app = applications.SparkApp(gain, np.random.choice(np.arange(np.array(gain).size)))
+                            gains = line.strip().split(":")[1].split("\t")
+                            break
+                else:
+                    sys.exit("Invalid sub type!")
+
+                gains = np.array(gains).astype(float)
+                app = applications.SparkApp(gains, np.random.choice(np.arange(np.array(gains).size)))
         else:
             sys.exit("wrong app type!")
 
@@ -327,9 +331,8 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
 
 
 if __name__ == "__main__":
-    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
-    #config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-    
+    config_file = "../configs/config.json"
+
     main(config_file, 3, 0, 0, -1)
 
     """parser = argparse.ArgumentParser()
