@@ -99,7 +99,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
                 for i in range(len(total.mean(axis=0))):  # Assuming all lists have the same length
                     file.write(f"{total.mean(axis=0)[i]}\n")
         plt.plot(x, total.mean(axis=0))
-        print(total[total.shape[0]-100:].mean())
+        #print(total[total.shape[0]-100:].mean())
         x_ticks = list(range(0, total_iter, 500))
         x_tick_labels = [str(tick) for tick in x_ticks]  # Convert tick values to strings
         plt.xticks(x_ticks, x_tick_labels, rotation=45)
@@ -123,9 +123,9 @@ if __name__ == "__main__":
     parser.add_argument('app_type_sub_id', type=int)
     parser.add_argument('policy_id', type=int)
     args = parser.parse_args()
-    queue_length = main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id)"""
+    average_reward = main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id)"""
 
-    average_reward = main(config_file, 2, 0, 1)
+    average_reward = main(config_file, 3, 0, 0)
     print(average_reward)
 
    

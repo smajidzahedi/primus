@@ -65,9 +65,8 @@ def objective(trial, config_file_name, app_type_id, app_type_sub_id):
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     # Extract the average reward from the output
     for line in result.stdout.decode().split('\n'):
-        if line.startswith('Average reward: '):
-            avg_reward = float(line[len('Average reward: '):])
-            break
+        avg_reward = float(line)
+        break
     else:
         raise RuntimeError('Average reward not found in output')
      
@@ -79,7 +78,7 @@ config_file_name = '/Users/jingyiwu/Documents/Project/MARL/configs/config.json'
 with open(config_file_name, 'r') as f:
     config = json.load(f)
 
-app_type_id = 0
+app_type_id = 3
 app_type_sub_ids = [0]
 policy_id = 0
 add_noise = config["coordinator_config"]["add_noise"]

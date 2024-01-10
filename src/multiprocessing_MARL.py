@@ -18,7 +18,7 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-set_seed(42)
+#set_seed(42)
 
 """
 Coordinator: Communicates with workers and aggregates servers actions to determine if circuit breaker trips.
@@ -26,7 +26,7 @@ Coordinator: Communicates with workers and aggregates servers actions to determi
 
 
 class Coordinator:
-    def __init__(self, coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers, sprinters_decay_factor):
+    def __init__(self, coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers, sprinters_decay_factor, var):
 
         # Sprinters parameters
         self.frac_sprinters = 0  # Initialize num_sprinting
@@ -59,15 +59,19 @@ class Coordinator:
         self.max_frac = coordinator_config["max_frac"]  # higher bound of sprinters of system trip
 
         # Privacy parameters
-        self.c_epsilon = coordinator_config["c_epsilon"]
-        self.c_delta = coordinator_config["c_delta"]
-        self.epsilon = self.c_epsilon / np.log10(self.num_servers)
-        # self.epsilon_prime = self.epsilon / self.total_iterations_dp
-        self.epsilon_prime = self.epsilon / 120
-        self.delta = self.c_delta / self.num_servers
-        self.alpha = 1 + 2 * np.log10(1 / self.delta) / self.epsilon
-        self.var = self.alpha / (2 * self.num_servers ** 2 * self.epsilon_prime)
-        self.sigma = np.sqrt(self.var)
+        if var == -1:
+            self.c_epsilon = coordinator_config["c_epsilon"]
+            self.c_delta = coordinator_config["c_delta"]
+            self.epsilon = self.c_epsilon / np.log10(self.num_servers)
+            self.epsilon_prime = self.epsilon / self.total_iterations_dp
+            #self.epsilon_prime = self.epsilon / 120
+            self.delta = self.c_delta / self.num_servers
+            self.alpha = 1 + 2 * np.log10(1 / self.delta) / self.epsilon
+            self.var = self.alpha / (2 * self.num_servers ** 2 * self.epsilon_prime)
+            self.sigma = np.sqrt(self.var)
+        else:
+            self.var = var
+            self.sigma = np.sqrt(self.var)
         self.add_noise = coordinator_config["add_noise"]
         self.count_sprint_epoch = np.zeros(self.num_servers)
 
@@ -193,6 +197,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     add_change = servers_config["change"]
     period = coordinator_config["period"]
     utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
+    var = coordinator_config["var"]
     if add_noise:
         sprinters_decay_factor = config["sprinters_decay_factor_noise"][app_type][app_sub_type]
     else:
@@ -209,7 +214,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
     worker_processors = []
 
     coordinator = Coordinator(coordinator_config, w2c_queues, c2w_queues, num_workers, num_servers,
-                              sprinters_decay_factor)
+                              sprinters_decay_factor, var)
 
     for i in range(num_servers):
         if app_type == "markov":
@@ -226,6 +231,34 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             nominal_tps = config["queue_app_nominal_tps"][app_sub_type]
             max_queue_length = config["queue_app_max_queue_length"][app_sub_type]
             app = applications.QueueApp(arrival_tps, sprinting_tps, nominal_tps, max_queue_length)
+        elif app_type == "spark":
+            if app_sub_type == "s1":
+                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                    for line in file:
+                        if "als_gain" in line.strip():
+                            gain = line.strip().split(":")[1].split("\t")
+            elif app_sub_type == "s2":
+                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                    for line in file:
+                        if "kmeans_gain" in line.strip():
+                            gain = line.strip().split(":")[1].split("\t")
+            elif app_sub_type == "s3":
+                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                    for line in file:
+                        if "lr_gain" in line.strip():
+                            gain = line.strip().split(":")[1].split("\t")
+            elif app_sub_type == "s4":
+                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                    for line in file:
+                        if "pr_gain" in line.strip():
+                            gain = line.strip().split(":")[1].split("\t")
+            elif app_sub_type == "s5":
+                with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                    for line in file:
+                        if "svm_gain" in line.strip():
+                            gain = line.strip().split(":")[1].split("\t")
+            gain = [float(num) for num in gain] 
+            app = applications.SparkApp(gain, np.random.choice(np.arange(np.array(gain).size)))
         else:
             sys.exit("wrong app type!")
 
@@ -296,12 +329,13 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
 if __name__ == "__main__":
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
     #config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
-
-    main(config_file, 2, 1, 2, -1)
+    
+    main(config_file, 3, 0, 0, -1)
 
     """parser = argparse.ArgumentParser()
     parser.add_argument('app_type_id', type=int)
     parser.add_argument('app_type_sub_id', type=int)
     parser.add_argument('policy_id', type=int)
     args = parser.parse_args()
-    main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id, -1)"""
+    main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id, -1)
+"""

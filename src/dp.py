@@ -43,7 +43,7 @@ class App:
 
                     new_p[1][s2] += p[0][s1] * (1 - action[s1]) * trans[s2][s1][int(action[s1])]
                     new_p[1][s2] += p[1][s1] * prob_cooling * trans[s2][s1][1]
-
+            
             difference = np.sqrt(((p - new_p) ** 2).sum())
             p = new_p.copy()
 
@@ -138,7 +138,30 @@ class Queue(App):
     def get_tran_prob(self):
         return self.tran_prob
 
+class Spark(App):
+    def __init__(self, app_utilities, prob):
+        app_utilities = [float(num) for num in app_utilities] 
+        prob = [float(num) for num in prob]
+        self.app_state = app_utilities
+        self.app_state_len = len(app_utilities)
+        dim = (self.app_state_len, self.app_state_len, 2)
+        self.tran_prob = np.zeros(dim)
+        for i in range(self.app_state_len):
+            for j in range(self.app_state_len):
+                self.tran_prob[i][j][0] = prob[i]
+                self.tran_prob[i][j][1] = prob[i]
+    def get_app_state_len(self):
+        return self.app_state_len
 
+    def get_sprinting_utility(self, index):
+        return self.app_state[index]
+
+    def get_nominal_utility(self, index):
+        return 0
+
+    def get_tran_prob(self):
+        return self.tran_prob
+    
 def run_dp(config_file_name, app_type_id, app_sub_type_id):
     with open(config_file_name, 'r') as f:
         config = json.load(f)
@@ -149,8 +172,6 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
     discount_factor = config["ac_discount_factor"][app_type][app_sub_type]
     prob_cooling = config["servers_config"]["cooling_prob"]
-    app_type = config["app_types"][app_type_id]
-    app_sub_type = config["app_sub_types"][app_type][app_sub_type_id]
     add_change = config["servers_config"]["change"]
     if add_change == 1:
         error_1 = config["dp_error_change"][app_type][app_sub_type]
@@ -176,6 +197,43 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
         utility_normalization_factor = config["utility_normalization_factor"][app_type][app_sub_type]
         app = Queue(arrival_tps, sprinting_tps, nominal_tps, 20, utility_normalization_factor)
         # sys.exit()
+    elif app_type == "spark":
+        if app_sub_type == "s1":
+            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                for line in file:
+                    if "als_prob" in line.strip():
+                        prob = line.strip().split(":")[1].split("\t")
+                    if "als_utilities" in line.strip():
+                        app_utilities = line.strip().split(":")[1].split("\t")
+        elif app_sub_type == "s2":
+            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                for line in file:
+                    if "kmeans_prob" in line.strip():
+                        prob = line.strip().split(":")[1].split("\t")
+                    if "kmeans_utilities" in line.strip():
+                        app_utilities = line.strip().split(":")[1].split("\t")
+        elif app_sub_type == "s3":
+            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                for line in file:
+                    if "lr_prob" in line.strip():
+                        prob = line.strip().split(":")[1].split("\t")
+                    if "lr_utilities" in line.strip():
+                        app_utilities = line.strip().split(":")[1].split("\t")
+        elif app_sub_type == "s4":
+            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                for line in file:
+                    if "pr_prob" in line.strip():
+                        prob = line.strip().split(":")[1].split("\t")
+                    if "pr_utilities" in line.strip():
+                        app_utilities = line.strip().split(":")[1].split("\t")
+        elif app_sub_type == "s5":
+            with open("/Users/jingyiwu/Documents/Project/MARL/gain.txt") as file:
+                for line in file:
+                    if "svm_prob" in line.strip():
+                        prob = line.strip().split(":")[1].split("\t")
+                    if "svm_utilities" in line.strip():
+                        app_utilities = line.strip().split(":")[1].split("\t")
+        app = Spark(app_utilities, prob)
     else:
         sys.exit("App model is not supported")
 
@@ -194,6 +252,7 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     itr = 0
     diff = 10
     while diff > error_1:
+        print(diff)
         itr += 1
         total_cost = cost(frac_sprinters, min_frac, max_frac)
 
@@ -252,5 +311,5 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 if __name__ == "__main__":
     # config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
     config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
-    run_dp(config_file, 1, 5)
+    run_dp(config_file, 3, 4)
 
