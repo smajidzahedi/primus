@@ -50,11 +50,11 @@ def objective(trial, config_file_name, app_type_id, app_type_sub_id):
     if add_noise:  
         config['a_lr_noise'][app_type][app_sub_type] = config["c_lr_noise"][app_type][app_sub_type] / b
         config["sprinters_decay_factor_noise"][app_type][app_sub_type] = 1 - config["a_lr_noise"][app_type][app_sub_type] * a
-        config["state_normalization_factor_noise"][app_type][app_sub_type] = trial.suggest_float("state_normalization_factor_noise", 0.01, 0.09, step=0.01)
+        config["state_normalization_factor_noise"][app_type][app_sub_type] = trial.suggest_float("state_normalization_factor_noise", 0.01, 0.1, step=0.01)
     else:  
         config['a_lr_no_noise'][app_type][app_sub_type] = config["c_lr_no_noise"][app_type][app_sub_type] / b
         config["sprinters_decay_factor_no_noise"][app_type][app_sub_type] = 1 - config["a_lr_no_noise"][app_type][app_sub_type] * a
-        config["state_normalization_factor_no_noise"][app_type][app_sub_type] = trial.suggest_float("state_normalization_factor_no_noise", 0.01, 0.09, step=0.01)
+        config["state_normalization_factor_no_noise"][app_type][app_sub_type] = trial.suggest_float("state_normalization_factor_no_noise", 0.01, 0.1, step=0.01)
     # Update the parameters in the config
 
     with open(config_file_name, 'w') as f:
@@ -97,8 +97,8 @@ for app_type_sub_id in app_type_sub_ids:
         config['sprinters_decay_factor_noise'][app_type][app_sub_type] = 1 - config["a_lr_noise"][app_type][app_sub_type] * best_params["a"]
         config["state_normalization_factor_noise"][app_type][app_sub_type] = best_params["state_normalization_factor_noise"]
     else:
-        config['a_lr_no_noise'][app_type][app_sub_type] = best_params["c_lr_no_noise"] / best_params["b"]
-        config['sprinters_decay_factor_no_noise'][app_type][app_sub_type] = 1 - best_params["a_lr_no_noise"] * best_params["a"]
+        config['a_lr_no_noise'][app_type][app_sub_type] = config["c_lr_no_noise"][app_type][app_sub_type] / best_params["b"]
+        config['sprinters_decay_factor_no_noise'][app_type][app_sub_type] = 1 - config["a_lr_no_noise"][app_type][app_sub_type] * best_params["a"]
         config["state_normalization_factor_no_noise"][app_type][app_sub_type] = best_params["state_normalization_factor_no_noise"]
 
     with open("/Users/jingyiwu/Documents/Project/MARL/configs/config.json", 'w') as f:
