@@ -152,7 +152,7 @@ class SparkApp(App):
         super().__init__()
         self.gains = gains
         self.max_gain = np.array(gains).max()
-        self.current_state = self.gains[initial_index]
+        self.current_state = self.gains[initial_index] / self.max_gain
         self.current_index = initial_index
         self.state_space_len = len(self.gains)
 
@@ -163,7 +163,7 @@ class SparkApp(App):
         return self.current_index
 
     def get_sprinting_utility(self):
-        return self.current_state / self.max_gain
+        return self.current_state
 
     def get_nominal_utility(self):
         return 0
@@ -176,4 +176,4 @@ class SparkApp(App):
         elif self.current_index < self.state_space_len - 1:
             self.current_index += 1
 
-        self.current_state = self.gains[self.current_index]
+        self.current_state = self.gains[self.current_index] / self.max_gain
