@@ -18,7 +18,7 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-#set_seed(42)
+set_seed(42)
 
 """
 Coordinator: Communicates with workers and aggregates servers actions to determine if circuit breaker trips.
@@ -232,7 +232,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
             max_queue_length = config["queue_app_max_queue_length"][app_sub_type]
             app = applications.QueueApp(arrival_tps, sprinting_tps, nominal_tps, max_queue_length)
         elif app_type == "spark":
-            with open("../data/gain.txt") as file:
+            with open("data/gain.txt") as file:
                 if app_sub_type == "s1":
                     for line in file:
                         if "als_gain" in line.strip():
@@ -331,7 +331,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
 
 
 if __name__ == "__main__":
-    config_file = "../configs/config.json"
+    config_file = "configs/config.json"
 
     main(config_file, 3, 0, 0, -1)
 
@@ -340,5 +340,4 @@ if __name__ == "__main__":
     parser.add_argument('app_type_sub_id', type=int)
     parser.add_argument('policy_id', type=int)
     args = parser.parse_args()
-    main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id, -1)
-"""
+    main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id, -1)"""

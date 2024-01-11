@@ -216,7 +216,7 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
         app = Queue(arrival_tps, sprinting_tps, nominal_tps, 20, utility_normalization_factor)
         # sys.exit()
     elif app_type == "spark":
-        with open('../data/gain.txt') as file:
+        with open('data/gain.txt') as file:
             if app_sub_type == "s1":
                 for line in file:
                     if "als_prob" in line.strip():
@@ -325,11 +325,12 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
     print(itr)
     print(frac_sprinters)
     print(actions)
-    print('DP threshold is:', app.get_state(actions.sum()))
+    print('DP threshold is:', app.get_state(int(actions.sum())))
+    print(app_utilities)
     print(avg_reward)
 
 
 if __name__ == "__main__":
-    config_file = "../configs/config.json"
-    run_dp(config_file, 3, 4)
+    config_file = "configs/config.json"
+    run_dp(config_file, 3, 0)
 

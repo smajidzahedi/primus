@@ -95,7 +95,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
                 itr += 1
             total[server_id] = y
         if add_change:
-            with open(os.path.join("/Users/jingyiwu/Documents/Project/MARL_PAPER/asplos24/data", f"q{app_type_sub_id+1}_{policy}_change_{change_type}.txt"), "w") as file:
+            with open(os.path.join("/Users/jingyiwu/Documents/Project/MARL_PAPER/sigmetrics24/data", f"q{app_type_sub_id+1}_{policy}_change_{change_type}.txt"), "w") as file:
                 for i in range(len(total.mean(axis=0))):  # Assuming all lists have the same length
                     file.write(f"{total.mean(axis=0)[i]}\n")
         plt.plot(x, total.mean(axis=0))
@@ -116,8 +116,7 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
     return average_reward
 
 if __name__ == "__main__":
-    config_file = "/Users/jingyiwu/Documents/Project/MARL/configs/config.json"
-    # config_file = "/Users/smzahedi/Documents/Papers/MARL/configs/config.json"
+    config_file = "configs/config.json"
     """parser = argparse.ArgumentParser()
     parser.add_argument('app_type_id', type=int)
     parser.add_argument('app_type_sub_id', type=int)

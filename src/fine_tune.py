@@ -37,7 +37,7 @@ def format(obj, indent_level=0):
         return json.dumps(obj)
 
 
-def objective(trial, config_file_name, app_type_id, app_type_sub_id):
+def objective(trial, config_file_name, app_type_id, app_type_sub_id, policy_id):
     
     # Load the configuration file
     with open(config_file_name, 'r') as f:
@@ -46,12 +46,17 @@ def objective(trial, config_file_name, app_type_id, app_type_sub_id):
     app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
     a = trial.suggest_int("a", 2, 10, step=1)
     b = trial.suggest_int("b", 2, 10, step=1)
+    config["std_max"][app_type][app_sub_type] = trial.suggest_categorical("std_max", [0.001, 0.005, 0.01, 0.05, 0.1])
+    config["ac_discount_factor"][app_type][app_sub_type] = trial.suggest_categorical("ac_discount_factor", [0.99, 0.999, 0.9999])
     add_noise = config["coordinator_config"]["add_noise"]
     if add_noise:  
         config['a_lr_noise'][app_type][app_sub_type] = config["c_lr_noise"][app_type][app_sub_type] / b
         config["sprinters_decay_factor_noise"][app_type][app_sub_type] = 1 - config["a_lr_noise"][app_type][app_sub_type] * a
         config["state_normalization_factor_noise"][app_type][app_sub_type] = trial.suggest_float("state_normalization_factor_noise", 0.01, 0.1, step=0.01)
     else:  
+        config["c_lr_no_noise"][app_type][app_sub_type] = trial.suggest_categorical("c_lr_no_noise", [0.001, 0.002, 0.003,
+                                                                                            0.004, 0.005, 0.006,
+                                                                                            0.007, 0.008, 0.009])
         config['a_lr_no_noise'][app_type][app_sub_type] = config["c_lr_no_noise"][app_type][app_sub_type] / b
         config["sprinters_decay_factor_no_noise"][app_type][app_sub_type] = 1 - config["a_lr_no_noise"][app_type][app_sub_type] * a
         config["state_normalization_factor_no_noise"][app_type][app_sub_type] = trial.suggest_float("state_normalization_factor_no_noise", 0.01, 0.1, step=0.01)
@@ -60,8 +65,8 @@ def objective(trial, config_file_name, app_type_id, app_type_sub_id):
     with open(config_file_name, 'w') as f:
         f.write(format(config))
 
-    subprocess.run(['python3', '/Users/jingyiwu/Documents/Project/MARL/src/multiprocessing_MARL.py', str(app_type_id), str(app_type_sub_id)], check=True)
-    result = subprocess.run(['python3', '/Users/jingyiwu/Documents/Project/MARL/src/plot_images.py', str(app_type_id), str(app_type_sub_id)], 
+    subprocess.run(['python3', '/Users/jingyiwu/Documents/Project/MARL/src/multiprocessing_MARL.py', str(app_type_id), str(app_type_sub_id), str(policy_id)], check=True)
+    result = subprocess.run(['python3', '/Users/jingyiwu/Documents/Project/MARL/src/plot_images.py', str(app_type_id), str(app_type_sub_id), str(policy_id)], 
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     # Extract the average reward from the output
     for line in result.stdout.decode().split('\n'):
@@ -87,7 +92,7 @@ for app_type_sub_id in app_type_sub_ids:
     app_sub_type = config["app_sub_types"][app_type][app_type_sub_id]
     policy_type = config["policy_types"][policy_id]
     study = optuna.create_study(direction='maximize')
-    study.optimize(lambda trial: objective(trial, config_file_name, app_type_id, app_type_sub_id), n_trials=10)
+    study.optimize(lambda trial: objective(trial, config_file_name, app_type_id, app_type_sub_id, policy_id), n_trials=50)
     print(study.best_params)
     # Get the best parameters
     best_params = study.best_params
@@ -97,9 +102,11 @@ for app_type_sub_id in app_type_sub_ids:
         config['sprinters_decay_factor_noise'][app_type][app_sub_type] = 1 - config["a_lr_noise"][app_type][app_sub_type] * best_params["a"]
         config["state_normalization_factor_noise"][app_type][app_sub_type] = best_params["state_normalization_factor_noise"]
     else:
+        config["c_lr_no_noise"][app_type][app_sub_type] = best_params["c_lr_no_noise"]
         config['a_lr_no_noise'][app_type][app_sub_type] = config["c_lr_no_noise"][app_type][app_sub_type] / best_params["b"]
         config['sprinters_decay_factor_no_noise'][app_type][app_sub_type] = 1 - config["a_lr_no_noise"][app_type][app_sub_type] * best_params["a"]
         config["state_normalization_factor_no_noise"][app_type][app_sub_type] = best_params["state_normalization_factor_no_noise"]
-
-    with open("/Users/jingyiwu/Documents/Project/MARL/configs/config.json", 'w') as f:
+    config["std_max"][app_type][app_sub_type] = best_params["std_max"]
+    config["ac_discount_factor"][app_type][app_sub_type] = best_params["ac_discount_factor"]
+    with open("configs/config.json", 'w') as f:
         f.write(format(config))
