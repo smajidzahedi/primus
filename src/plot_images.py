@@ -95,11 +95,10 @@ def main(config_file_name, app_type_id, app_type_sub_id, policy_id):
                 itr += 1
             total[server_id] = y
         if add_change:
-            with open(os.path.join("/Users/jingyiwu/Documents/Project/MARL_PAPER/sigmetrics24/data", f"q{app_type_sub_id+1}_{policy}_change_{change_type}.txt"), "w") as file:
+            with open(os.path.join(path, f"q{app_type_sub_id+1}_{policy}_change_{change_type}.txt"), "w") as file:
                 for i in range(len(total.mean(axis=0))):  # Assuming all lists have the same length
                     file.write(f"{total.mean(axis=0)[i]}\n")
         plt.plot(x, total.mean(axis=0))
-        #print(total[total.shape[0]-100:].mean())
         x_ticks = list(range(0, total_iter, 500))
         x_tick_labels = [str(tick) for tick in x_ticks]  # Convert tick values to strings
         plt.xticks(x_ticks, x_tick_labels, rotation=45)
@@ -124,7 +123,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     average_reward = main(config_file, args.app_type_id, args.app_type_sub_id, args.policy_id)"""
 
-    average_reward = main(config_file, 3, 0, 0)
+    average_reward = main(config_file, 3, 1, 1)
     print(average_reward)
 
-   
+    # 0.121961147297708 thr = 0.2

@@ -175,5 +175,4 @@ class SparkApp(App):
             self.current_index = 0
         elif self.current_index < self.state_space_len - 1:
             self.current_index += 1
-
         self.current_state = self.gains[self.current_index] / self.max_gain

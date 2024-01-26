@@ -18,7 +18,7 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-set_seed(42)
+#set_seed(42)
 
 """
 Coordinator: Communicates with workers and aggregates servers actions to determine if circuit breaker trips.
@@ -271,13 +271,14 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
                 a_lr = config["a_lr_noise"][app_type][app_sub_type]
                 c_lr = config["c_lr_noise"][app_type][app_sub_type]
                 state_normalization_factor = config["state_normalization_factor_noise"][app_type][app_sub_type]
+                std_max = config["std_max_noise"][app_type][app_sub_type]
             else:
                 a_lr = config["a_lr_no_noise"][app_type][app_sub_type]
                 c_lr = config["c_lr_no_noise"][app_type][app_sub_type]
                 state_normalization_factor = config["state_normalization_factor_no_noise"][app_type][app_sub_type]
+                std_max = config["std_max_no_noise"][app_type][app_sub_type]
             a_h1_size = config["ac_policy_config"]["a_h1_size"]
             c_h1_size = config["ac_policy_config"]["c_h1_size"]
-            std_max = config["std_max"][app_type][app_sub_type]
             df = config["ac_discount_factor"][app_type][app_sub_type]
             mini_batch_size = config["ac_policy_config"]["mini_batch_size"]
             policy = policies.ACPolicy(1, 3, a_h1_size, c_h1_size, a_lr, c_lr, df, std_max, mini_batch_size)
@@ -333,7 +334,7 @@ def main(config_file_name, app_type_id, app_sub_type_id, policy_id, threshold_in
 if __name__ == "__main__":
     config_file = "configs/config.json"
 
-    main(config_file, 3, 0, 0, -1)
+    main(config_file, 3, 1, 1, -1)
 
     """parser = argparse.ArgumentParser()
     parser.add_argument('app_type_id', type=int)

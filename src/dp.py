@@ -332,5 +332,5 @@ def run_dp(config_file_name, app_type_id, app_sub_type_id):
 
 if __name__ == "__main__":
     config_file = "configs/config.json"
-    run_dp(config_file, 3, 0)
+    run_dp(config_file, 3, 4)
 
