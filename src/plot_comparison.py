@@ -11,11 +11,11 @@ for i in range(num_iterations):
             print(f"Running iteration {i+1} spark {app_type_sub_id+1} policy {policy_id}")
             # Run the first script
             print("Running multiprocessing_MARL.py")
-            subprocess.run(["python3", "/Users/jingyiwu/Documents/Project/MARL/src/multiprocessing_MARL.py", str(3), str(app_type_sub_id), str(policy_id)], check=True)
+            subprocess.run(["python3", "~/Documents/Project/MARL/src/multiprocessing_MARL.py", str(3), str(app_type_sub_id), str(policy_id)], check=True)
 
             # Run the second script
             print("Running plot_images.py")
-            result = subprocess.run(['python3', '/Users/jingyiwu/Documents/Project/MARL/src/plot_images.py', str(3), str(app_type_sub_id), str(policy_id)], 
+            result = subprocess.run(['python3', '~/Documents/Project/MARL/src/plot_images.py', str(3), str(app_type_sub_id), str(policy_id)],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
             for line in result.stdout.decode().split('\n'):
                 avg_reward = float(line)
