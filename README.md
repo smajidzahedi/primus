@@ -1,1 +1,1 @@
-# Source Code for PACS: Private and Adaptive Computational Sprinting 
+# Source Code for Primus: Private Multi-agent Learning for Computational Sprinting 
